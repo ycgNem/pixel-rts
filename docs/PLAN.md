@@ -62,9 +62,10 @@ finished: 17 by supremacy, 4 by conquest, 3 by science); 4 Medium island games a
 at 46–57 min. Era II at about 6–7 min. Start fairness: the city-count gap between seats is ≤ 1.3 on average in each map
 type (`mapgen.test`).
 
-**Next:** deploy (everything is committed; the public repo `ycgNem/pixel-rts` and GitHub Pages
-are the remaining step), cross-network online test (M7), a real new player through Boot Camp
-(M14), and the seventh critic pass (started, stopped before it reported).
+**Live:** https://ycgnem.github.io/pixel-rts/ (every push to `main` redeploys).
+
+**Next:** cross-network online test (M7), a real new player through Boot Camp (M14), and the
+seventh critic pass (started, stopped before it reported).
 
 ---
 
@@ -160,12 +161,14 @@ the architecture above.
 
 ### Phase 1 — Playable single-player prototype
 
-#### M0 · Project skeleton ✅ (local) / ⏳ (deploy)
+#### M0 · Project skeleton ✅
 Folder layout, TypeScript + Vite + Vitest, the sim boundary test, the Pages workflow, and these docs.
 - [x] `npm run dev` shows the placeholder screen
 - [x] `npm test`, `npm run typecheck` and `npm run build` pass
-- [ ] GitHub repo created, Pages source set to "GitHub Actions", and a push to `main` publishes the
-      placeholder at `https://<user>.github.io/<repo>/`
+- [x] GitHub repo created, Pages source set to "GitHub Actions", and a push to `main` publishes the
+      game at `https://<user>.github.io/<repo>/` — `ycgNem/pixel-rts`, live at
+      https://ycgnem.github.io/pixel-rts/ (2026-10-14: the workflow's test, build and deploy jobs
+      passed; a Playwright check loaded the title, the setup and a match with no console errors)
 
 #### M1 · Engine core, map & camera
 Port the engine pieces from Sprocket & Sprout (loop, input, RNG, atlas, font). App shell with a
