@@ -1,0 +1,78 @@
+{
+  "comment": "Terrain tilesets (PixelLab Wang tilesets, 32px). Each pair is drawn as a layer over its lower terrain. remap: palette swaps applied to every tile (mute the greens so units stand out).",
+  "pairs": [
+    {
+      "name": "water",
+      "dir": "pixellab/terrain/deep-water",
+      "lower": "DEEP",
+      "upper": "WATER"
+    },
+    {
+      "name": "sand",
+      "dir": "pixellab/terrain/water-sand",
+      "lower": "WATER",
+      "upper": "SAND"
+    },
+    {
+      "name": "grass",
+      "dir": "pixellab/terrain/sand-grass",
+      "lower": "SAND",
+      "upper": "GRASS"
+    },
+    {
+      "name": "rich",
+      "dir": "pixellab/terrain/grass-rich",
+      "lower": "GRASS",
+      "upper": "RICH",
+      "remap": {
+        "#45293f": "#625565",
+        "#2e222f": "#3e3546",
+        "#fbff86": "#fbb954",
+        "#f9c22b": "#e6904e",
+        "#f79617": "#cd683d"
+      }
+    },
+    {
+      "name": "road",
+      "dir": "pixellab/terrain/grass-road",
+      "lower": "GRASS",
+      "upper": "ROAD",
+      "remap": {
+        "#fbb954": "#ab947a",
+        "#e6904e": "#966c6c",
+        "#cd683d": "#966c6c",
+        "#9e4539": "#694f62",
+        "#6e2727": "#3e3546",
+        "#fdcbb0": "#b2ba90"
+      }
+    },
+    {
+      "name": "hill",
+      "dir": "pixellab/terrain/grass-hill",
+      "lower": "GRASS",
+      "upper": "HILL"
+    },
+    {
+      "name": "forest",
+      "dir": "pixellab/terrain/grass-forest",
+      "lower": "GRASS",
+      "upper": "FOREST"
+    },
+    {
+      "name": "mountain",
+      "dir": "pixellab/terrain/grass-mountain3",
+      "lower": "GRASS",
+      "upper": "MOUNTAIN",
+      "remap": {
+        "#ffffff": "#c7dcd0",
+        "#c7dcd0": "#9babb2",
+        "#313638": "#374e4a"
+      }
+    }
+  ],
+  "remap": {
+    "#91db69": "#92a984",
+    "#cddf6c": "#b2ba90",
+    "#1ebc73": "#547e64"
+  }
+}

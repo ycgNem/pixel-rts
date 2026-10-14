@@ -1,0 +1,32 @@
+{
+  "name": "pixel-rts",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Browser pixel-art RTS inspired by The Conquerors 3 and Strategema, with peer-to-peer online co-op.",
+  "author": "jacksonwalley",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "e2e": "node e2e/smoke.mjs",
+    "e2e:tutorial": "node e2e/tutorial.mjs",
+    "e2e:readability": "node e2e/readability.mjs",
+    "e2e:twists": "node e2e/twists.mjs"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "playwright": "^1.48.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.4"
+  },
+  "dependencies": {
+    "trystero": "0.25.4"
+  }
+}

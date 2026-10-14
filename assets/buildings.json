@@ -1,0 +1,253 @@
+{
+  "_doc": "PixelLab sources for buildings (b:<kind>, foot = footprint in tiles), cities (city:<level>) and deposits (dep:<kind>). scripts/import-buildings.mjs --fetch downloads to assets/pixellab/buildings/ and packs src/art/buildings.png.",
+  "owner": "859e3c7d-c1c3-4eee-9e06-c95bf333277b",
+  "art": {
+    "b:hq": {
+      "object": "c21d1f07-96d9-4ed9-a7ba-5e166e27af95",
+      "foot": [
+        4,
+        4
+      ]
+    },
+    "b:barracks": {
+      "object": "0341f79e-f894-4602-865c-c3587708c8d4",
+      "foot": [
+        3,
+        3
+      ]
+    },
+    "b:factory": {
+      "object": "9037bbb3-e2ab-46a9-81ea-348a2177adc2",
+      "foot": [
+        4,
+        3
+      ]
+    },
+    "b:mine": {
+      "object": "fe189ebb-5c93-4db2-bc57-f71cd7108dcf",
+      "foot": [
+        2,
+        2
+      ]
+    },
+    "b:derrick": {
+      "object": "61171449-0734-4964-80f6-a755bc01fb15",
+      "foot": [
+        2,
+        2
+      ]
+    },
+    "b:lab": {
+      "object": "4496a581-6547-4c27-8850-0b94672bdd7f",
+      "foot": [
+        2,
+        2
+      ]
+    },
+    "b:airfield": {
+      "object": "1c689960-742b-4443-a9d1-77a3fe1ccca7",
+      "foot": [
+        4,
+        5
+      ]
+    },
+    "b:dock": {
+      "object": "efb6e720-2e4c-401b-947f-ff976764baef",
+      "foot": [
+        3,
+        3
+      ]
+    },
+    "b:radar": {
+      "object": "10a918e6-0dcd-4751-808d-9bc9a3963eb9",
+      "foot": [
+        2,
+        2
+      ]
+    },
+    "b:coastal": {
+      "object": "569d3f50-02a2-440f-b61d-bb41bb00afe9",
+      "foot": [
+        2,
+        2
+      ]
+    },
+    "b:turret": {
+      "object": "e5c78184-8486-44b8-a9bb-7999bcec601f",
+      "foot": [
+        1,
+        1
+      ],
+      "sink": 1
+    },
+    "b:aagun": {
+      "object": "b41725c4-270c-4bb7-945c-9d95131dc9c7",
+      "foot": [
+        1,
+        1
+      ],
+      "sink": 1
+    },
+    "b:launch": {
+      "object": "7bf06127-7548-4256-9982-02a53430bb62",
+      "foot": [
+        5,
+        5
+      ]
+    },
+    "city:1": {
+      "object": "591fbcfe-9c88-4a4b-b2f2-5eed2b72fd90",
+      "neutral": true
+    },
+    "city:2": {
+      "object": "4dd291ee-bece-4bba-b800-09d48a1dd610",
+      "neutral": true
+    },
+    "city:3": {
+      "object": "36af0926-28b3-4930-aab6-41e9551eccf5",
+      "neutral": true
+    },
+    "city:4": {
+      "object": "681aac22-6d08-46dc-ae33-3d45ac799e84",
+      "neutral": true
+    },
+    "city:5": {
+      "object": "2e4f71b1-7a44-497b-9ab0-8571b6eb7e36",
+      "neutral": true
+    },
+    "dep:ore": {
+      "object": "e8a8d5b1-557e-4024-adc5-a9f8246aa719",
+      "neutral": true
+    },
+    "dep:oil": {
+      "object": "49319cea-8f1b-4c63-902a-9c9fbe2aa370",
+      "neutral": true
+    },
+    "dep:rich": {
+      "object": "9c25e08c-6969-4c20-b8fb-f92ce94dd954",
+      "neutral": true
+    },
+    "prop:oak": {
+      "mapObject": "ed9e9f22-2711-4042-82f9-8df74011b255",
+      "neutral": true,
+      "anchor": "bottom"
+    },
+    "prop:oak2": {
+      "mapObject": "129c7066-36b2-4419-ad26-1b653ac2d02d",
+      "neutral": true,
+      "anchor": "bottom"
+    },
+    "prop:pines": {
+      "mapObject": "96aa0e38-7e1b-4641-9fcc-3a2257bd2f60",
+      "neutral": true,
+      "anchor": "bottom"
+    },
+    "prop:bush": {
+      "mapObject": "498f9d07-04e1-4b1b-ad6c-cc22c969bfe4",
+      "neutral": true,
+      "anchor": "bottom"
+    },
+    "prop:boulders": {
+      "mapObject": "3b7a5029-d2e4-4595-b8d5-14a182cc590b",
+      "neutral": true,
+      "anchor": "bottom",
+      "remap": {
+        "#323353": "#3e3546",
+        "#484a77": "#625565",
+        "#4d65b4": "#7f708a",
+        "#4d9be6": "#9babb2",
+        "#8fd3ff": "#c7dcd0"
+      }
+    },
+    "prop:hay": {
+      "mapObject": "2f8e3c5d-5f1c-4cdc-b7fb-7bb58b72fe12",
+      "neutral": true,
+      "anchor": "bottom",
+      "remap": {
+        "#fbff86": "#c7dcd0",
+        "#f9c22b": "#b2ba90",
+        "#fbb954": "#ab947a",
+        "#e6904e": "#966c6c"
+      }
+    },
+    "prop:ruin": {
+      "mapObject": "d9a6cd7a-a7f5-400e-a9a4-ab6a2a940660",
+      "neutral": true,
+      "anchor": "bottom",
+      "remap": {
+        "#323353": "#3e3546",
+        "#484a77": "#625565",
+        "#4d65b4": "#7f708a",
+        "#4d9be6": "#9babb2",
+        "#8fd3ff": "#c7dcd0"
+      }
+    },
+    "prop:flowers": {
+      "mapObject": "3adcf7de-1de7-4f2f-b3cb-1c0eb40c19d8",
+      "neutral": true
+    },
+    "prop:crops": {
+      "mapObject": "9434e7a4-ccea-4d9d-bf6e-6639e212a85d",
+      "neutral": true
+    },
+    "prop:wheat": {
+      "mapObject": "2aa7aedf-71ef-48ca-8662-5a49b28e0f55",
+      "neutral": true,
+      "remap": {
+        "#f9c22b": "#b2ba90",
+        "#fbb954": "#a2a947",
+        "#e6904e": "#ab947a",
+        "#cd683d": "#676633"
+      }
+    },
+    "prop:peak": {
+      "mapObject": "3e4e67f6-4b14-4524-b8f8-a99c1ca8a485",
+      "neutral": true,
+      "anchor": "bottom",
+      "remap": {
+        "#323353": "#3e3546",
+        "#484a77": "#625565",
+        "#4d65b4": "#7f708a",
+        "#4d9be6": "#9babb2",
+        "#8fd3ff": "#c7dcd0"
+      }
+    },
+    "prop:peaks": {
+      "mapObject": "2edcb20a-76f6-4a8c-b458-c48c414538d3",
+      "neutral": true,
+      "anchor": "bottom",
+      "remap": {
+        "#323353": "#3e3546",
+        "#484a77": "#625565",
+        "#4d65b4": "#7f708a",
+        "#4d9be6": "#9babb2",
+        "#8fd3ff": "#c7dcd0"
+      }
+    },
+    "prop:industry": {
+      "mapObject": "6d26583d-3d89-41e4-9abb-789d6856fc96",
+      "neutral": true,
+      "anchor": "bottom"
+    },
+    "prop:academy": {
+      "mapObject": "43ac2946-f7b9-4f5b-85ec-79dc1236f6c2",
+      "neutral": true,
+      "anchor": "bottom"
+    },
+    "prop:fortress": {
+      "mapObject": "f7ff8eb8-b119-42a8-b393-15f16fb3458d",
+      "neutral": true,
+      "anchor": "bottom"
+    },
+    "prop:market": {
+      "mapObject": "0b1a5455-a5d6-43c9-a9a4-7e07cb8922e3",
+      "neutral": true,
+      "anchor": "bottom"
+    },
+    "prop:port": {
+      "mapObject": "b72f6baa-badd-4694-aefe-bc1c7c385cc9",
+      "neutral": true,
+      "anchor": "bottom"
+    }
+  }
+}
