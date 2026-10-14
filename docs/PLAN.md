@@ -62,8 +62,9 @@ finished: 17 by supremacy, 4 by conquest, 3 by science); 4 Medium island games a
 at 46–57 min. Era II at about 6–7 min. Start fairness: the city-count gap between seats is ≤ 1.3 on average in each map
 type (`mapgen.test`).
 
-**Next:** deploy (needs the GitHub repo: ask first), cross-network online test (M7), a real
-new player through Boot Camp (M14).
+**Next:** deploy (everything is committed; the public repo `ycgNem/pixel-rts` and GitHub Pages
+are the remaining step), cross-network online test (M7), a real new player through Boot Camp
+(M14), and the seventh critic pass (started, stopped before it reported).
 
 ---
 

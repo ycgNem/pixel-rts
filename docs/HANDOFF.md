@@ -5,7 +5,8 @@ Running notes for whoever (human or AI session) picks this up next. Newest statu
 ## Status
 
 **2026-10-14 (latest) — sixth critic pass: endings, auctions, the naval triangle, small screens.**
-Everything below still holds; this session added (nothing committed yet):
+Everything below still holds; this session added (all of it is in the repo's first commit; the
+GitHub repo `ycgNem/pixel-rts` and the Pages deploy are the next step, see the end of this entry):
 
 - **Endings:** *Last Stand* (`src/sim/laststand.ts`, `LAST_STAND`): a player who lost every city
   but keeps the HQ gets a supply floor of 40, HQ-trained Riflemen and Rocket Troopers and a free
@@ -53,6 +54,11 @@ Everything below still holds; this session added (nothing committed yet):
   results (it's the seats, not the team id), and allies at seats 0 and 2 instead split 4–2 with
   longer games (median 21.0 min). Six seeds each: not enough to call it a bias yet.
   Battleships are still rare (their 200 oil competes with tanks).
+- **Next:** create the public repo and push (`gh repo create ycgNem/pixel-rts --public --source .
+  --remote origin --push`), then Settings → Pages → Source: GitHub Actions; the workflow deploys
+  to https://ycgnem.github.io/pixel-rts/. Then tick M0's deploy box in PLAN once the page loads.
+  A seventh critic pass was started and stopped before it reported (partial probes in the
+  scratchpad's critic7 folder).
 
 **2026-10-14 (earlier) — fifth critic pass: tenders, insurgent cells, wanted aces, pacing.**
 Everything below still holds; this session added (nothing committed yet):
