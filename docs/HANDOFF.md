@@ -4,7 +4,62 @@ Running notes for whoever (human or AI session) picks this up next. Newest statu
 
 ## Status
 
-**2026-10-14 (latest) — sixth critic pass: endings, auctions, the naval triangle, small screens.**
+**2026-10-14 (latest) — map graphics pass and WASD camera.** Committed and pushed to `main`
+(live at https://ycgnem.github.io/pixel-rts/). Player-facing summary: [PATCH_NOTES.md](PATCH_NOTES.md).
+
+How the map is drawn now (read this before touching terrain art):
+- `src/render/painter.ts` paints each 512 px chunk pixel by pixel from the tile map: every terrain
+  is a bilinear field plus slow noise (its 0.5 contour is the edge), water is shaded by a chamfer
+  distance from land, higher ground draws its south face inside its own tiles, and forests and
+  mountains get tree and peak sprites baked in y order (`scatter`). `canStand` keeps every baked
+  sprite's whole opaque box off roads, cities, deposits, bases and the beach; `blocks()` answers
+  "is a baked sprite here" for the props.
+- `src/render/terrain.ts` caches chunks (full size up to `KEEP`, ¼-size copies for the strategic
+  zoom), bakes ahead of pans, and draws the animated wave/glint layer per chunk.
+- `src/render/farmland.ts` decides where fields are and what each pixel of a crop is; the painter
+  draws them, the props read them (nothing stands in a crop; livestock graze pastures).
+- `src/render/props.ts` places standing scenery by tile hash with spacing rules, then checks each
+  prop's real sprite box against baked trees/peaks and crops. `src/render/ambient.ts` is clouds
+  and birds (render-only randomness is fine there).
+- Art: `assets/map.json` → `node scripts/import-map.mjs` → `src/art/map.png/json` (`tree:d*`
+  broadleaf, `tree:c*` conifers, `tree:x*` meadow-only autumn/apple, `peak:s*` snowy, `peak:r*`
+  rocky, `prop:<name>` decorations). The old Wang tileset sheet (`src/art/terrain.*`) is gone;
+  `scripts/import-terrain.mjs` and `assets/terrain.json` are kept for reference only.
+- Checks: `node e2e/overlap.mjs` (must print `overlap ok`), `node e2e/controls.mjs`,
+  `node e2e/mapview.mjs <url> <outDir>` for before/after shots (fog off, two maps, zooms 0.5–2).
+  Baseline shots of the original tile terrain are not in git; regenerate from commit 7b26c6d if
+  you need them.
+- Critic (subagent comparing before/after screenshots, three rounds): original 5/10 → 8.5/10,
+  final verdict "clearly better, nothing overlapping". Its leftover notes, the next things to do:
+  1. a few mountain cells next to a road get no peak (they would cover the road) and show a flat
+     rock slab: give them a small rocky peak sprite or a low rock pile that fits;
+  2. where trees are left out beside a beach, the forest-floor grass has a straight edge: feather
+     it with noise;
+  3. fields still read as separate plots; let neighbouring plots touch and form blocks;
+  4. hills could use their own mound sprites; the minimap colours are unchanged.
+
+- **Camera:** WASD pans (arrows too). Card hotkeys moved off W/A/S/D (attack-move Q, stop X,
+  ability E/F, Drop V, Airfield E, Dock N, Scout Car C, Artillery R, Destroyer R, Submarine U).
+  Wheel zoom eases between steps and takes one step per notch (trackpads no longer skip levels).
+  Checked by `node e2e/controls.mjs`.
+- **Terrain painter** (`src/render/painter.ts`, used by `src/render/terrain.ts`): organic coasts,
+  depth-shaded water with a foam rim and animated waves and glints, cliffs and banks on south
+  faces, meadows of grass clumps and wildflowers, rutted dirt roads, farm-field patchwork around
+  cities, forests of individual trees, mountain ranges of snowy peaks over scree.
+- **Scenery** (`src/render/props.ts`): 64 new decorations by context (farm animals near cities,
+  beach litter and palms, reeds and lily pads, forest-edge stumps and deer, war relics).
+- **Ambience** (`src/render/ambient.ts`): drifting cloud shadows and bird flocks.
+- **Art (PixelLab, 45 generations):** 16 broadleaf trees, 16 conifers, 16 mountain peaks, 64
+  decorations (1-direction review batches f234d841, 0fb560ef, 8ed5c6c3, 25faa62d; frames in
+  `assets/pixellab/map/`, manifest `assets/map.json`, packed by `node scripts/import-map.mjs`).
+  Used 2,530.1 of the 2,885 now allowed.
+- Before/after shots: `node e2e/mapview.mjs <url> <outDir>` (fog off, two maps, several zooms).
+  Perf unchanged (`e2e/perf.mjs` 190–240 fps headless); a chunk paints in 25–60 ms.
+- **Critic pass** (subagent, before/after screenshots): hills, mountains, farmland
+  (`src/render/farmland.ts`), rich ore, sea, props and clouds reworked from its notes; scenery
+  overlaps are audited by `node e2e/overlap.mjs` (0 on 4 maps).
+
+**2026-10-14 — sixth critic pass: endings, auctions, the naval triangle, small screens.**
 Everything below still holds; this session added (committed and pushed to `ycgNem/pixel-rts`,
 live at https://ycgnem.github.io/pixel-rts/):
 
@@ -246,10 +301,12 @@ prints the balance data.
 
 ## PixelLab ledger
 
-Budget: 600 generations from the first autonomous session. `generations_used` was **2094** at
-the start → stop at **2694**. **Used 2436 on 2026-10-14 (258 left).** Check with `get_balance`.
-Every object id in use is in `assets/units.json`, `assets/buildings.json` and
-`assets/terrain.json`; the importers re-download from those.
+Budget: 600 generations from the first autonomous session (`generations_used` 2094 → stop at
+2694), then another 400 for the map pass → **stop at 2885**. **Used 2530.1 after the map pass
+(2026-10-14; 355 left).** Check with `get_balance`. Every object id in use is in
+`assets/units.json`, `assets/buildings.json`, `assets/terrain.json` and `assets/map.json`; the
+importers re-download from those (map art: the review-batch frames are saved in
+`assets/pixellab/map/`, re-fetch with `node scripts/pl-fetch.mjs frames <frame_0 url> <n> <dir>`).
 
 | What | Tool | Id | Cost | Notes |
 |---|---|---|---|---|
@@ -268,6 +325,10 @@ Every object id in use is in `assets/units.json`, `assets/buildings.json` and
 | Mountain tileset (grass → mountain) | create_topdown_tileset 32px | 351b6e0a… (dir `grass-mountain2`) | ~4 | greys remapped off the team ramp |
 | Merchant ship | create_8_direction_object 64 + style transport | 8aea6fda-72c3-4286-902f-f97b3c5ff7b6 | 10 | red waterline → team key |
 | 17 scenery props: oak ×2, pines, bush, boulders, hay, ruin, flowers, crops, wheat, peak, peaks, 5 specialty landmarks | create_map_object | `prop:*` in `assets/buildings.json` | ~17 | peaks, boulders, ruin carry a grey remap |
+| Map trees, broadleaf (16) | create_1_direction_object 48 + style oak | f234d841-cec7-41cc-8e7b-40a7e471f707 | 10 | `assets/pixellab/map/trees-d` |
+| Map trees, conifer (16) | create_1_direction_object 48 + style pines | 0fb560ef-ecce-4133-9927-5dfb1ace04f6 | 10 | `trees-c` |
+| Mountain peaks (16) | create_1_direction_object 64 + style peaks | 8ed5c6c3-b5e8-4073-8d24-2d4c623c28c8 | 10 | `peaks` |
+| Map decorations (64) | create_1_direction_object 40, item list | 25faa62d-6a0b-47f4-aa8b-494375cdfbf0 | 15 | `decor`; beach props' sand retinted on import |
 
 Downloads: `node scripts/pl-fetch.mjs url <url> <file>` / `tileset <id> <dir>`. Review with
 `node scripts/contact.mjs <dir|files> --out <png> --scale 4 --snap`.

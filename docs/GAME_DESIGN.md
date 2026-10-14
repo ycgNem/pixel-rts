@@ -541,11 +541,11 @@ match clears the slot.
 | Double-click or Ctrl+click a unit | Select all of that type on screen |
 | Right click | Smart order: move / attack / load / repair / unload / set rally |
 | Shift + right click | Queue a waypoint |
-| A / S / H / P / D / U | Attack-move / stop / hold / patrol / ability / unload |
+| Q / X / H / P / E (F) / U | Attack-move / stop / hold / patrol / ability (a second ability) / unload |
 | Ctrl + 1–9, 1–9 | Set / select a control group (twice: jump the camera to it) |
 | , / . | Select the whole army / an idle Builder |
-| Arrows, screen edge, middle-drag | Pan the camera |
-| Mouse wheel, + / − | Zoom (whole-number steps, plus a zoomed-out strategic view) |
+| WASD, arrows, screen edge, middle-drag | Pan the camera (W/A/S/D are never command-card keys) |
+| Mouse wheel, + / − | Zoom (whole-number steps eased over a few frames, plus a zoomed-out strategic view; one step per wheel notch, trackpads too) |
 | Minimap | Left click jumps the camera, right click gives an order there |
 | B | Build menu (with a Builder selected); every button has a hotkey |
 | O / L / J (HQ selected) | Exchange: buy oil / sell oil / fund research |
@@ -608,8 +608,33 @@ The main goal is that the game stays readable at scale.
   White team's). Idle planes circle slowly over the spot they were
   sent to instead of hanging still (render only; helicopters hover), and a plane over ground units
   is drawn at 80% opacity, so a bomber never hides the fight under it.
-- **Terrain:** mountains are snowy peaks with shaded slopes (not flat rock), so a range reads as
-  impassable high ground; roads run right up to an HQ (tucked one tile under its edge).
+- **Terrain** is painted pixel by pixel from the tile map (`src/render/painter.ts`), not laid as
+  tiles: each terrain's edge follows its tiles but wanders with slow noise, so coasts, forest
+  edges and roads curve instead of stepping. Water is shaded by depth (pale shallows, blue, dusky
+  deeps) with a foam rim, waves that run up the beach and glints on open water. Higher ground
+  shows its south face (¾ view): grass a dirt lip over the beach, hills a shaded slope, mountains a
+  cliff, all inside their own tiles so what you see matches where units can walk. Hills are pale,
+  dry plateaus with a contour and a shaded south lip (they give sight, so they must read). Grass
+  has meadows (lush and dry patches of grass clumps), single blades and wildflowers; dirt roads
+  have wheel ruts, a grassy crown, pebbles and tufted edges. Forests are packed with individual
+  trees (broadleaf stands and conifer stands, more pines near mountains) that never hang over a
+  road or the beach; every mountain cell is solid rock crowded with snowy peaks, so even a thin
+  ridge reads as a wall, with a halo of scree on the grass around it. Rich-ore ground is dark earth
+  strewn with rocks and glinting ore. Roads run right up to an HQ (tucked one tile under its edge).
+- **Farmland** (`src/render/farmland.ts`): each city farms a belt of fields that widens with its
+  level (a village a few plots, a metropolis a wide patchwork): wheat, young green crops, rows of
+  vegetables, ploughed earth, lavender and pastures, with grass margins and some hedges. A plot is
+  only tilled where all of it is plains, so roads and woods cut verges rather than crops.
+- **Scenery** (render-only, never blocks): lone trees, bushes, rocks and flowers in meadows;
+  sheep and cows in the pastures, hay, carts, wells and beehives between the fields; driftwood,
+  palms and rowboats on beaches; reeds and lily pads in calm shallows; stumps, logs and foxes at
+  forest edges; and old war relics (wrecks, sandbags, craters) far from towns. Animals turn around
+  now and then. Nothing overlaps: each prop's sprite box is checked against the other props, the
+  baked trees and peaks, the crops, roads, cities, deposits and buildings (`e2e/overlap.mjs`).
+  Nothing humanoid (no scarecrows), so scenery never reads as a unit.
+- **Ambience:** faint cloud shadows drift over the map by day (fainter in rain, none at night or
+  in the strategic view), and now
+  and then a flock of birds crosses the view (gulls over the sea), with shadows below.
 - **Cities** look different at each of their 5 levels, so you can read a city's size at a glance.
 - **HUD:** resources across the top, the victory tracker under it, the message feed in the middle
   (three lines on a dark plate; repeats are merged), a getting-started checklist for the first

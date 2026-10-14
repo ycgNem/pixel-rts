@@ -33,6 +33,11 @@ export function hasSprite(name: string): boolean {
   return base.has(name);
 }
 
+/** Names of the sprites starting with `prefix`, sorted. */
+export function spriteNames(prefix: string): string[] {
+  return [...base.keys()].filter((k) => k.startsWith(prefix)).sort();
+}
+
 /** The sprite in a player's colors (color = index into TEAM_COLORS; 0 is the art as drawn). */
 export function sprite(name: string, color = 0): Sprite | null {
   const b = base.get(name);

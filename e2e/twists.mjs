@@ -35,7 +35,7 @@ await page.evaluate(async () => {
 });
 await page.waitForTimeout(500);
 await page.screenshot({ path: `${out}/01-insurgent-ready.png` });
-await page.keyboard.press('KeyD');
+await page.keyboard.press('KeyV');
 await page.waitForTimeout(500);
 const ins = await page.evaluate(() => {
   const s = window.__app.screen.session.state;

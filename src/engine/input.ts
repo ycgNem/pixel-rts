@@ -19,7 +19,7 @@ export const ACTION_LABELS: Record<Action, string> = {
 };
 
 export const DEFAULT_BINDS: Record<Action, string[]> = {
-  panUp: ['ArrowUp'], panDown: ['ArrowDown'], panLeft: ['ArrowLeft'], panRight: ['ArrowRight'],
+  panUp: ['KeyW', 'ArrowUp'], panDown: ['KeyS', 'ArrowDown'], panLeft: ['KeyA', 'ArrowLeft'], panRight: ['KeyD', 'ArrowRight'],
   zoomIn: ['Equal', 'NumpadAdd', 'PageUp'], zoomOut: ['Minus', 'NumpadSubtract', 'PageDown'],
   powers: ['Tab'], research: ['F2'], help: ['F1'], stats: ['F3'], menu: ['Escape', 'F10'],
   alert: ['Space'], home: ['Home'], idleBuilder: ['Period'], army: ['Comma'], chat: ['Enter'],
@@ -62,6 +62,8 @@ export class Input {
   /** canvas px per CSS px */
   scale = 1;
   private lastClick = 0;
+  private wheelAcc = 0;
+  private wheelLock = 0;
   private lastClickPos: [number, number] = [0, 0];
 
   attach(el: HTMLElement) {
@@ -136,8 +138,16 @@ export class Input {
     el.addEventListener('contextmenu', (e) => e.preventDefault());
     el.addEventListener('wheel', (e) => {
       pos(e);
-      this.mouse.wheel += Math.sign(e.deltaY);
       e.preventDefault();
+      // one zoom step per mouse notch: trackpads send a stream of small deltas, so they add up to
+      // a notch's worth first, and a step is followed by a short pause
+      const now = performance.now();
+      if (now < this.wheelLock) return;
+      this.wheelAcc += e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 600 : 1);
+      if (Math.abs(this.wheelAcc) < 50) return;
+      this.mouse.wheel += Math.sign(this.wheelAcc);
+      this.wheelAcc = 0;
+      this.wheelLock = now + 130;
     }, { passive: false });
   }
 

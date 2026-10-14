@@ -22,6 +22,7 @@ import type { Fx } from './fx';
 import { drawText, textWidth, ICON } from '../ui/font';
 import { viewColor, viewUi } from './colors';
 import { Props, type Prop } from './props';
+import { Ambient } from './ambient';
 import { CELL, dither, ditherAlpha, levels } from './dither';
 import { makeCanvas } from './pixbuf';
 
@@ -66,20 +67,26 @@ function outlined(ctx: CanvasRenderingContext2D, str: string, x: number, y: numb
 export class WorldRenderer {
   terrain: TerrainLayer;
   props: Props;
+  ambient: Ambient;
   territory: TerritoryLayer;
   /** per aircraft: how far into its holding circle it is, and when that was worked out */
   private orbits = new Map<number, { b: number; t: number }>();
   private rain: { x: number; y: number; s: number }[] = [];
 
   constructor(s: MatchState) {
-    this.terrain = new TerrainLayer(s.map);
-    this.props = new Props(s);
+    this.terrain = new TerrainLayer(s.map, s.setup.seed);
+    this.props = new Props(s, (x0, y0, x1, y1) => this.terrain.blocks(x0, y0, x1, y1));
+    this.ambient = new Ambient(s.map, s.setup.seed);
     this.territory = new TerritoryLayer(s.map.w, s.map.h);
   }
 
-  private prop(ctx: CanvasRenderingContext2D, p: Prop, cam: Camera) {
-    const sp = sprite(`prop:${p.kind}`, -1);
-    if (sp) drawSprite(ctx, sp, cam.sx(p.x), cam.sy(p.y), cam.z);
+  private prop(ctx: CanvasRenderingContext2D, p: Prop, cam: Camera, time: number) {
+    const sp = sprite(p.name, -1);
+    if (!sp) return;
+    // livestock and wildlife turn around every so often, each on its own clock
+    let flip = p.flip;
+    if (p.alive && Math.floor(time / 3.7 + p.tile * 0.618) % 3 === 0) flip = !flip;
+    drawSprite(ctx, sp, cam.sx(p.x), cam.sy(p.y), cam.z, flip);
   }
 
   /** Interpolated unit position (world tiles). */
@@ -109,10 +116,10 @@ export class WorldRenderer {
     const [x0, y0, x1, y1] = cam.bounds(4);
     ctx.fillStyle = '#1a1420';
     ctx.fillRect(0, 0, cam.w, cam.h);
-    this.terrain.draw(ctx, x0, y0, x1, y1, (tx) => cam.sx(tx), (ty) => cam.sy(ty), z);
+    this.terrain.draw(ctx, x0, y0, x1, y1, (tx) => cam.sx(tx), (ty) => cam.sy(ty), z, performance.now());
     // scenery: flat props lie on the ground now; tall ones are sorted in with the units below
     const props = this.props.visible(x0 - 2, y0 - 1, x1 + 2, y1 + 3);
-    for (const p of props) if (p.flat) this.prop(ctx, p, cam);
+    for (const p of props) if (p.flat) this.prop(ctx, p, cam, v.time);
     // Home Front borders lie on the ground, under everything else
     this.territory.update(s);
     this.territory.draw(ctx, s, cam, x0, y0, x1, y1);
@@ -214,7 +221,7 @@ export class WorldRenderer {
       } });
     }
     for (const c of s.crates) if (inView(c.x, c.y) && vis(c.x, c.y)) items.push({ y: c.y, draw: () => this.crate(ctx, c.x, c.y, cam, v) });
-    for (const p of props) if (!p.flat) items.push({ y: p.y, draw: () => this.prop(ctx, p, cam) });
+    for (const p of props) if (!p.flat) items.push({ y: p.y, draw: () => this.prop(ctx, p, cam, v.time) });
     items.sort((a, b) => a.y - b.y);
     for (const it of items) it.draw();
     if (strat.length) this.strategicUnits(ctx, s, strat, cam, v);
@@ -245,6 +252,9 @@ export class WorldRenderer {
       const [px, py] = this.pos(u, v);
       this.unitBars(ctx, s, u, cam.sx(px), cam.sy(py), cam, v);
     }
+    // cloud shadows drift over the ground and everything on it
+    const dark = darkness(s);
+    this.ambient.drawClouds(ctx, cam, v.time, dark, s.weather.rain);
     fx.draw(ctx, cam);
     for (const c of s.cities) if (inView(c.x, c.y, 6) && (fog.isExplored(c.x, c.y) || s.setup.fog === 'off')) this.cityLabel(ctx, s, c, cam, v);
 
@@ -281,6 +291,8 @@ export class WorldRenderer {
     // forget planes that are gone
     if (this.orbits.size > air.length * 2 + 64) for (const id of this.orbits.keys()) if (!s.ents[id]) this.orbits.delete(id);
 
+    this.ambient.drawBirds(ctx, cam, v.time, dark, s.weather.storm > 0);
+
     // ---- fog
     if (s.setup.fog !== 'off') {
       fog.draw(ctx, cam);
@@ -289,7 +301,6 @@ export class WorldRenderer {
     }
 
     // ---- night (with pools of light) and rain
-    const dark = darkness(s);
     if (dark > 0) this.drawNight(ctx, s, cam, dark, v, (x, y) => s.setup.fog === 'off' || fog.isExplored(x, y));
     if (s.weather.rain > 0) this.drawRain(ctx, cam, s.weather.rain, s.weather.storm > 0, v);
   }

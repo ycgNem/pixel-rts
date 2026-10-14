@@ -1,0 +1,191 @@
+{
+  "_doc": "Map art (PixelLab 1-direction review batches, downloaded with scripts/pl-fetch.mjs frames). Groups become numbered sprites (<prefix>00, <prefix>01, ...) read by src/render/painter.ts; decor becomes prop:<name> for src/render/props.ts. anchor: bottom = base of the art on the point, center = middle. scripts/import-map.mjs packs src/art/map.png + map.json.",
+  "groups": {
+    "tree:d": {
+      "dir": "pixellab/map/trees-d",
+      "pick": [
+        0,
+        1,
+        3,
+        5,
+        8,
+        12,
+        14,
+        0,
+        1,
+        3,
+        5,
+        8,
+        12,
+        14,
+        4,
+        6,
+        11,
+        2
+      ],
+      "anchor": "bottom",
+      "_note": "f234d841: deciduous; the broad green ones listed twice so they make up most of a wood; birch, willow, poplar and sapling once each (autumn and apple trees mottled the canopy: props only)"
+    },
+    "tree:c": {
+      "dir": "pixellab/map/trees-c",
+      "pick": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        9,
+        10,
+        11,
+        12,
+        7
+      ],
+      "anchor": "bottom",
+      "_note": "0fb560ef: conifers"
+    },
+    "tree:s": {
+      "dir": "pixellab/map/trees-c",
+      "pick": [
+        8
+      ],
+      "anchor": "bottom",
+      "_note": "snowy pines (high ground)"
+    },
+    "tree:x": {
+      "dir": "pixellab/map/trees-d",
+      "pick": [
+        10,
+        15
+      ],
+      "anchor": "bottom",
+      "_note": "autumn and apple trees: lone trees in meadows only"
+    },
+    "peak:s": {
+      "dir": "pixellab/map/peaks",
+      "pick": [
+        0,
+        1,
+        2,
+        5,
+        6,
+        7,
+        10,
+        13
+      ],
+      "anchor": "bottom",
+      "_note": "8ed5c6c3: snow-capped peaks, for the heart of a range"
+    },
+    "peak:r": {
+      "dir": "pixellab/map/peaks",
+      "pick": [
+        3,
+        11,
+        12
+      ],
+      "anchor": "bottom",
+      "_note": "8ed5c6c3: bare rocky peaks, for the flanks of a range and lone crags (the overview was all snow)"
+    }
+  },
+  "decor": {
+    "dir": "pixellab/map/decor",
+    "_note": "25faa62d: 64 small decorations",
+    "anchor": "bottom",
+    "flat": [
+      "flowersw",
+      "flowersy",
+      "heather",
+      "lilypads",
+      "pond",
+      "shells",
+      "crater",
+      "pumpkins",
+      "cabbages",
+      "tulips",
+      "puddle",
+      "campfire",
+      "slab"
+    ],
+    "items": {
+      "grassclump": 0,
+      "flowersw": 1,
+      "flowersy": 2,
+      "heather": 3,
+      "rock": 4,
+      "mossyrocks": 5,
+      "slab": 6,
+      "stump": 7,
+      "log": 8,
+      "mushrooms": 9,
+      "shrub": 10,
+      "berrybush": 11,
+      "fern": 12,
+      "reeds": 13,
+      "lilypads": 14,
+      "searock": 15,
+      "sheep": 16,
+      "cow": 17,
+      "fence": 18,
+      "well": 19,
+      "haybale": 20,
+      "cart": 21,
+      "scarecrow": 22,
+      "campfire": 23,
+      "firewood": 24,
+      "pond": 25,
+      "tankwreck": 26,
+      "sandbags": 27,
+      "wire": 28,
+      "crater": 29,
+      "signpost": 30,
+      "barrels": 31,
+      "driftwood": 32,
+      "shells": 33,
+      "palm": 34,
+      "beachrocks": 35,
+      "sunflowers": 36,
+      "lavender": 37,
+      "thornbush": 38,
+      "marshgrass": 39,
+      "cairn": 40,
+      "column": 41,
+      "crates": 42,
+      "rowboat": 43,
+      "pier": 44,
+      "chicken": 45,
+      "pig": 46,
+      "goat": 47,
+      "deer": 48,
+      "fox": 49,
+      "pumpkins": 50,
+      "cabbages": 51,
+      "beehives": 52,
+      "bench": 53,
+      "lamppost": 54,
+      "milestone": 55,
+      "tulips": 56,
+      "puddle": 57,
+      "termites": 58,
+      "cactus": 59,
+      "deadbush": 60,
+      "snowrock": 61,
+      "ice": 62,
+      "gull": 63
+    },
+    "remap": {
+      "_note": "beach props come with a bright sand patch: retint it to the painted beach (taupe, dust)",
+      "items": [
+        "driftwood",
+        "shells",
+        "beachrocks"
+      ],
+      "colors": {
+        "#fbb954": "#ab947a",
+        "#f9c22b": "#ab947a",
+        "#e6904e": "#966c6c",
+        "#fbff86": "#b2ba90",
+        "#cd683d": "#966c6c"
+      }
+    }
+  }
+}

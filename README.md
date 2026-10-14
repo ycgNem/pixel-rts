@@ -13,7 +13,10 @@ difficulties), online matches over WebRTC, a Boot Camp tutorial, a Field Guide t
 building, save and Continue, four map types, 29 techs in four eras, land, air and sea units (with
 a destroyer–battleship–submarine triangle at sea), and every win condition. Twists of its own
 include a government in exile, a last stand at the HQ, insurgency for knocked-out players, city
-contract auctions and bounties, resistance, coalitions, wanted aces and the Home Front. See
+contract auctions and bounties, resistance, coalitions, wanted aces and the Home Front. The map is
+painted pixel by pixel (curving coasts, depth-shaded water with waves, forests of individual
+trees, mountain ranges, farmland around towns, scenery and drifting clouds). See
+[docs/PATCH_NOTES.md](docs/PATCH_NOTES.md) for what changed lately,
 [docs/PLAN.md](docs/PLAN.md) for what is verified and what is next, and
 [docs/HANDOFF.md](docs/HANDOFF.md) for the latest session notes.
 
@@ -37,6 +40,9 @@ npm run e2e:tutorial         # plays Boot Camp step by step
 npm run e2e:readability      # a 6-team, 300-unit battle screenshot
 npm run e2e:twists           # insurgency's Drop and a contract tender's Bid, through the real HUD
 node e2e/perf.mjs            # frame times for the PLAN's fps checks
+node e2e/controls.mjs        # WASD / arrow panning, card hotkeys, eased wheel zoom
+node e2e/overlap.mjs         # no scenery sprite overlaps another, a road, a city, a deposit, a building or a crop
+node e2e/mapview.mjs <url> <outDir>   # map screenshots (fog off, two maps, several zooms) for before/after
 ```
 
 Headless AI matches: `node scripts/run.mjs scripts/aimatch.ts --seeds 1,2 --type pangaea --players 4`.
@@ -55,14 +61,16 @@ src/
   sim/                ALL game rules, as pure TypeScript: no DOM, no network, no clock, seeded RNG only
     ai/               computer players; they issue the same commands humans do
   data/               balance data: units, buildings, techs, costs, city levels, damage table, palette
-  render/             Canvas 2D drawing: camera, terrain chunks, sprites, fog, effects, minimap
+  render/             Canvas 2D drawing: camera, the painted ground (painter, farmland), scenery,
+                      ambience (clouds, birds), sprites, fog, effects, minimap
   net/                peer-to-peer play: transports (local / loopback / WebRTC), lobby, snapshots, protocol
   ui/                 HUD, panels, menus, bitmap font; turns clicks and keys into commands
   art/                (generated) sprite sheets the renderer loads, built from assets/
 assets/               art and audio sources, plus the scripts that build them into src/art/
 tests/                Vitest tests, run headless (mostly the sim)
 e2e/                  Playwright scripts that drive the real game and take screenshots
-docs/                 GAME_DESIGN.md (rules) and PLAN.md (milestones, risks, decisions)
+docs/                 GAME_DESIGN.md (rules), PLAN.md (milestones, risks, decisions),
+                      HANDOFF.md (session notes), PATCH_NOTES.md (player-facing changes)
 .github/workflows/    deploy.yml: test → build → GitHub Pages on every push to main
 ```
 

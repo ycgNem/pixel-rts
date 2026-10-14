@@ -140,6 +140,7 @@ export class Controller {
   /** Camera input. */
   camera(dt: number, overUI: boolean) {
     const cam = this.cam, inp = this.input;
+    cam.update(dt);
     const speed = (900 * dt) / Math.min(1, cam.z) / Math.max(1, cam.z / 2);
     let dx = 0, dy = 0;
     if (inp.isDown('panLeft')) dx -= speed;

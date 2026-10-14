@@ -64,11 +64,11 @@ export const BUILDINGS: Record<string, BuildingDef> = {
   },
   airfield: {
     id: 'airfield', name: 'Airfield', w: 4, h: 5, hp: 1800, cost: { cash: 800, oil: 100 }, buildTime: 50, sight: 7,
-    tech: 'flight', hotkey: 'A', desc: 'Builds aircraft.',
+    tech: 'flight', hotkey: 'E', desc: 'Builds aircraft.',
   },
   dock: {
     id: 'dock', name: 'Dock', w: 3, h: 3, hp: 1500, cost: { cash: 600, oil: 0 }, buildTime: 40, sight: 7,
-    tech: 'shipbuilding', coastal: true, hotkey: 'D', desc: 'Builds ships. Must touch water.',
+    tech: 'shipbuilding', coastal: true, hotkey: 'N', desc: 'Builds ships. Must touch water.',
   },
   aagun: {
     id: 'aagun', name: 'AA Gun', w: 1, h: 1, hp: 450, cost: { cash: 250, oil: 0 }, buildTime: 20, sight: 10,

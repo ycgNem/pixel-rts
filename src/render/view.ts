@@ -9,7 +9,19 @@ export class Camera {
   /** world px at the screen center */
   cx = 0;
   cy = 0;
-  z = 1;
+  /** the zoom drawn this frame; `zoomAt` eases it to the next step over a few frames */
+  private _z = 1;
+  /** the zoom step being eased toward */
+  zt = 1;
+  /** screen px that stays fixed while the zoom eases */
+  private anchor: [number, number] = [0, 0];
+  get z() {
+    return this._z;
+  }
+  /** setting the zoom directly jumps there (no easing) */
+  set z(v: number) {
+    this._z = this.zt = v;
+  }
   /** screen size in device px */
   w = 1;
   h = 1;
@@ -53,15 +65,25 @@ export class Camera {
     this.clamp();
   }
 
-  /** Change zoom keeping the world point under (px, py) fixed. */
+  /** Step the zoom keeping the world point under (px, py) fixed; `update` eases there. */
   zoomAt(dir: number, px: number, py: number) {
-    const i = ZOOMS.indexOf(this.z);
+    const i = ZOOMS.indexOf(this.zt);
     const ni = Math.max(0, Math.min(ZOOMS.length - 1, (i < 0 ? 2 : i) + dir));
-    if (ZOOMS[ni] === this.z) return;
+    if (ZOOMS[ni] === this.zt) return;
+    this.zt = ZOOMS[ni];
+    this.anchor = [px, py];
+  }
+
+  /** Ease the drawn zoom toward the step (in log space, so every step takes about as long). */
+  update(dt: number) {
+    if (this._z === this.zt) return;
+    const [px, py] = this.anchor;
     const wx = this.wx(px), wy = this.wy(py);
-    this.z = ZOOMS[ni];
-    this.cx = wx * TILE - (px - this.w / 2) / this.z;
-    this.cy = wy * TILE - (py - this.h / 2) / this.z;
+    const lt = Math.log2(this.zt);
+    const l = lt + (Math.log2(this._z) - lt) * Math.exp(-dt * 22);
+    this._z = Math.abs(l - lt) < 0.03 ? this.zt : 2 ** l;
+    this.cx = wx * TILE - (px - this.w / 2) / this._z;
+    this.cy = wy * TILE - (py - this.h / 2) / this._z;
     this.clamp();
   }
 

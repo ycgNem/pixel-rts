@@ -92,7 +92,7 @@ export const UNITS: Record<string, UnitDef> = {
   scout: {
     id: 'scout', name: 'Scout Car', cls: 'vehicle', armor: 'light', layer: 'ground',
     hp: 140, speed: 3.4, sight: 10, radius: 0.32, cost: { cash: 150, oil: 10 }, supply: 1, buildTime: 10,
-    at: ['factory'], ability: 'flare', hotkey: 'S',
+    at: ['factory'], ability: 'flare', hotkey: 'C',
     weapons: [{ cls: 'gun', dmg: 9, range: 5, cd: 0.6, hits: G }],
     desc: 'Fast, sees far. Fires a recon flare.',
   },
@@ -119,7 +119,7 @@ export const UNITS: Record<string, UnitDef> = {
   artillery: {
     id: 'artillery', name: 'Artillery', cls: 'vehicle', armor: 'light', layer: 'ground',
     hp: 200, speed: 1.6, sight: 7, radius: 0.44, cost: { cash: 400, oil: 70 }, supply: 3, buildTime: 20,
-    at: ['factory'], tech: 'artillery', ability: 'barrage', hotkey: 'A',
+    at: ['factory'], tech: 'artillery', ability: 'barrage', hotkey: 'R',
     weapons: [{ cls: 'shell', dmg: 55, range: 12, minRange: 3, cd: 4, hits: G, splash: 1.2, speed: 8 }],
     desc: 'Long range, splash damage, minimum range. Fragile.',
   },
@@ -176,7 +176,7 @@ export const UNITS: Record<string, UnitDef> = {
   destroyer: {
     id: 'destroyer', name: 'Destroyer', cls: 'ship', armor: 'ship', layer: 'naval',
     hp: 700, speed: 3, sight: 10, radius: 0.7, cost: { cash: 550, oil: 110 }, supply: 4, buildTime: 26,
-    at: ['dock'], tech: 'navalDoctrine', detects: true, ability: 'sonar', hotkey: 'D',
+    at: ['dock'], tech: 'navalDoctrine', detects: true, ability: 'sonar', hotkey: 'R',
     weapons: [
       { cls: 'cannon', dmg: 40, range: 7, cd: 2, hits: G, speed: 18 },
       { cls: 'flak', dmg: 12, range: 6, cd: 1, hits: AIR },
@@ -187,7 +187,7 @@ export const UNITS: Record<string, UnitDef> = {
   submarine: {
     id: 'submarine', name: 'Submarine', cls: 'ship', armor: 'sub', layer: 'naval',
     hp: 450, speed: 2.6, sight: 8, radius: 0.6, cost: { cash: 450, oil: 60 }, supply: 3, buildTime: 22,
-    at: ['dock'], tech: 'submarines', stealth: true, hotkey: 'S',
+    at: ['dock'], tech: 'submarines', stealth: true, hotkey: 'U',
     weapons: [{ cls: 'torpedo', dmg: 90, range: 6, cd: 4, hits: ['naval'], speed: 7 }],
     desc: 'Hidden until it fires or a destroyer comes near. Kills battleships; destroyers hunt it.',
   },

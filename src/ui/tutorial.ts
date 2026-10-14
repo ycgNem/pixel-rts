@@ -47,7 +47,7 @@ function deposit(c: Ctx, kind: 'ore' | 'oil'): Pt | null {
 const STEPS: Step[] = [
   {
     title: 'Look around',
-    text: 'Scroll with the arrow keys, the screen edges or the minimap. The mouse wheel zooms.',
+    text: 'Scroll with WASD, the arrow keys, the screen edges or the minimap. The mouse wheel zooms.',
     done: (c) => Math.hypot(c.cam.cx - c.t.camStart.x, c.cam.cy - c.t.camStart.y) / TILE > 6,
   },
   {

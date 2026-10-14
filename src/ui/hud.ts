@@ -829,8 +829,8 @@ export class Hud {
       };
       const ids = units.map((u) => u.id);
       const armed = has((u) => UNITS[u.kind].weapons.length > 0);
-      b('Atk', 'KeyA', 'Attack-move\nMove, fighting anything on the way. Click the map.', ctl.mode.m === 'attackMove', () => (ctl.mode = { m: 'attackMove' }), !armed);
-      b('Stop', 'KeyS', 'Stop', false, () => ctl.send({ t: 'stop', p: this.me, ids }));
+      b('Atk', 'KeyQ', 'Attack-move\nMove, fighting anything on the way. Click the map.', ctl.mode.m === 'attackMove', () => (ctl.mode = { m: 'attackMove' }), !armed);
+      b('Stop', 'KeyX', 'Stop', false, () => ctl.send({ t: 'stop', p: this.me, ids }));
       b('Hold', 'KeyH', 'Hold position\nStay put and fire at what comes in range.', units.every((u) => u.hold), () => ctl.send({ t: 'hold', p: this.me, ids }), !armed);
       b('Patrl', 'KeyP', 'Patrol\nWalk back and forth, fighting. Click the map.', ctl.mode.m === 'patrol', () => (ctl.mode = { m: 'patrol' }), !armed);
       if (has((u) => !!UNITS[u.kind].builds)) b('Build', 'KeyB', 'Build\nOpen the building menu.', false, () => (this.buildPage = true));
@@ -843,7 +843,7 @@ export class Hud {
         const cd = ready.length ? 0 : Math.min(...with_.map((u) => (u.abReady - s.tick) / TICK_RATE / def.cooldown));
         const [bx, by] = slot(i++);
         const active = ab === 'digIn' ? with_.every((u) => u.dug) : false;
-        if (ui.button(bx, by, BTN_W, BTN_H, { label: ABILITY_LABEL[ab], hotkey: n ? 'KeyF' : 'KeyD', tip: `${def.name}\n${def.desc}\nCooldown ${def.cooldown}s`, cooldown: cd, active, disabled: !ready.length })) {
+        if (ui.button(bx, by, BTN_W, BTN_H, { label: ABILITY_LABEL[ab], hotkey: n ? 'KeyF' : 'KeyE', tip: `${def.name}\n${def.desc}\nCooldown ${def.cooldown}s`, cooldown: cd, active, disabled: !ready.length })) {
           if (ab === 'flare') ctl.mode = { m: 'ability' };
           else ctl.send({ t: 'ability', p: this.me, ids: ready.map((u) => u.id) });
         }
@@ -911,7 +911,7 @@ export class Hud {
       const also = extra ? ` and ${extra} ${extra > 1 ? plural(chest) : chest} (war chest, $${extra * INSURGENCY.chestCost})` : '';
       const [bx, by] = slot(0);
       if (ui.button(bx, by, BTN_W, BTN_H, {
-        label: 'Drop', hotkey: 'KeyD', disabled: !!why && !why.startsWith('partisans ready'), cooldown: cd, badge: banked ? `${banked}` : undefined,
+        label: 'Drop', hotkey: 'KeyV', disabled: !!why && !why.startsWith('partisans ready'), cooldown: cd, badge: banked ? `${banked}` : undefined,
         tip: `Drop partisans\n${men} ${men > 1 ? plural(name) : name}${also} land around ${city.name}. ${odds}\nA squad is banked every ${INSURGENCY.every}s (up to ${INSURGENCY.maxCharges}); a drop sends every banked squad.\nYour war chest buys a ${chest} per squad for $${INSURGENCY.chestCost} while it lasts.\nThey land hidden for ${INSURGENCY.hidden}s (until they fire): the capture starts unseen.\nAt a neutral city, or one you once held.${why ? '\n' + cap(why) : ''}`,
       })) ctl.send({ t: 'insurge', p: this.me, city: city.id });
       return;
@@ -1278,7 +1278,7 @@ export class Hud {
       'Coastal cities send merchant ships to your Dock. Escort them: a sunk merchant pays its killer.',
       'City contracts (gold, top right): bid for the city (a ground unit there, then P), hold it, or take a bounty city from the leader.',
       'Your best three-star unit is your ace: it gets a name, allies near it hit harder, and its killer collects a bounty.',
-      'Knocked out? Fight on: drop partisans at a city (D), and hold a Town for 3 min to come back.',
+      'Knocked out? Fight on: drop partisans at a city (V), and hold a Town for 3 min to come back.',
     ];
     const keys = ACTIONS.filter((a) => a !== 'debug').map((a) => `${ACTION_LABELS[a]}: ${this.d.input.binds[a].map(keyLabel).join(' / ')}`);
     const w = 460;
