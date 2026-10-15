@@ -489,14 +489,23 @@ team and a color.
 | Co-op | You and an ally against three Hard AIs |
 
 **Boot Camp** (title screen): the tutorial. A small map picked for ore, oil and a city close to
-your start, against an Easy AI. A card shows one step at a time (look around, pick a Builder,
-mine, derrick, barracks, riflemen, take a city, research, a tank, a Command Power, then "now
-win"), with an arrow on the spot or at the screen edge (click it to look there). Steps done early
-tick off by themselves, and "Skip" ends it. When a step's target is off screen or under the card,
-the camera goes to it once. Underneath it is an ordinary match (without city contracts, so the
+your start, against an Easy AI. A card shows one step at a time (look around, mine, derrick,
+barracks, riflemen, take a city, research, a tank, a Command Power, then "now win"). Each step
+names the very next click for what the player has selected and open: with no Builder picked it
+points at one, then it lights up the Build button, then the Mine, then arrows the ore. A labelled
+arrow marks the spot on the map ("Ore", "Builder", the city's name), or sits at the screen edge
+(click it to look there); a blinking frame and arrow mark the HUD button to press, with a word or
+two beside it when a window covers the card. Steps done early tick off by themselves, and "Skip"
+ends it. When a target is off screen or under the card, the camera goes to it once. Underneath it is an ordinary match (without city contracts, so the
 lesson's goals are the only ones on screen). Until Boot Camp has been started
 once, its title-screen button is gold and says "new? start here", and a first skirmish is set
 against an Easy AI (the setup remembers what the player picks after that).
+
+**First Orders** (any other match, skirmish or online): the same guide, for players who skip
+Boot Camp. Six orders for the opening: mine ore, start research (it suggests Deep Mining), take a
+city with the starting Riflemen, pump oil, raise a Barracks, build a Factory, then a closing card.
+Each says why it matters in a dim line under the instruction. Once finished they never show again
+in that browser; "Hide" turns them off for good, and Menu > "First orders" turns them back on.
 
 **Field Guide** (title screen, G): every unit and building with its sprite turning through its
 eight facings (infantry walking) in any team colour, its cost, numbers, weapons, ability and what

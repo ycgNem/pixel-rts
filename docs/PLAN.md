@@ -64,8 +64,8 @@ type (`mapgen.test`).
 
 **Live:** https://ycgnem.github.io/pixel-rts/ (every push to `main` redeploys).
 
-**Next:** cross-network online test (M7), a real new player through Boot Camp (M14), and the
-seventh critic pass (started, stopped before it reported).
+**Next:** cross-network online test (M7), a real new player through Boot Camp and First Orders
+(M14), and the seventh critic pass (started, stopped before it reported).
 
 ---
 
@@ -359,8 +359,10 @@ Tooltips everywhere. Alerts (under attack, city lost, research done) that jump t
 event. A how-to-play / tutorial match. Rebindable keys. Settings (edge scroll, volume, UI scale).
 Colorblind-safe team palette option.
 - [ ] A new player finishes the tutorial and beats an Easy AI without outside help (playtest) —
-  Boot Camp is built (`src/ui/tutorial.ts`); `npm run e2e:tutorial` plays all 11 steps with
-  normal commands and checks each ticks off. Still needs a real new player.
+  Boot Camp is built (`src/ui/tutorial.ts`); `npm run e2e:tutorial` plays all 10 steps with
+  normal commands and checks each ticks off. First Orders guide every newcomer's ordinary match
+  too; `npm run e2e:orders` follows them with real clicks on what they point at (passed 4 of 4
+  random maps on 2026-10-14). Still needs a real new player.
 
 #### M15 · Performance, balance & saves
 Profiling pass. Balance from AI-vs-AI stats (unit trade efficiency, match length per mode).
@@ -475,4 +477,5 @@ Play link in the README, patch notes, a known-issues list, and a tagged release.
 | 2026-10-14 | Scenery never overlaps: props test their opaque sprite box against baked trees and peaks (`TerrainLayer.blocks`) and crops; the painter tests every tree and peak box against roads, cities, deposits, bases and the beach | `e2e/overlap.mjs` found 338 overlaps on 4 maps; now 0 of ~108k sprites. Props build in 76 ms on a Large map |
 | 2026-10-14 | Scenery props are hidden on and next to building footprints (render only) | A tree beside a building was drawn over it |
 | 2026-10-14 | New PixelLab art: Heavy Tank at 56 px in the Light Tank's style (long barrel, skirts), Rocket and Flak Troopers at the Rifleman's size, told apart by helmet colour; 30 generations | Infantry types and the two tanks were near-identical at zoom 1–2 (critic six) |
+| 2026-10-14 | One guide engine for Boot Camp and **First Orders** (every newcomer's skirmish or online match): each step returns a hint for the current selection and open panels, pointing at a map spot or a HUD button the HUD records each frame (`Hud.marks`); replaces the hover-only "Getting started" checklist | Playtest: in a Quick battle a newcomer saw five tiny lines and had to hover to learn what to click; research and mining were not self-explanatory. Still UI only (rules 3, 6) |
 | 2026-10-14 | Field Guide on the title screen (`src/ui/guide.ts`): units and buildings from the data files, with turning sprites and team-colour swatches; weapon names moved to `ui/counters.ts` to share with the HUD | A newcomer had no way to look units up outside a match; UI only, so it can't drift from balance |

@@ -15,7 +15,7 @@ import { audio } from '../engine/audio';
 import { viewer } from '../render/colors';
 import type { App, Screen } from './app';
 import { AUTOSAVE_SECONDS, clearSave, writeSave } from './saves';
-import { Tutorial } from '../ui/tutorial';
+import { Tutorial, ordersWanted } from '../ui/tutorial';
 import { TICK_RATE } from '../sim/types';
 
 /** the start view keeps clear of the top bar and the bottom panels (UI units) */
@@ -76,7 +76,8 @@ export class MatchScreen implements Screen {
       session, ctl: this.ctl, cam: this.cam, minimap: this.minimap, fog: this.fog, input: app.input, ui: app.ui, loop: app.loop,
       quit: () => this.quit(),
       save: session.host && !opts.demo ? () => this.save() : undefined,
-      tutorial: opts.tutorial ? new Tutorial() : undefined,
+      // Boot Camp in the tutorial match; First Orders in any other until a player has finished or hidden them
+      tutorial: opts.tutorial ? new Tutorial('bootcamp') : !opts.demo && ordersWanted() ? new Tutorial('orders') : undefined,
       rematch: opts.onRematch && session.host && session.status() === '' && !opts.demo ? (same) => opts.onRematch!(same) : undefined,
     });
     this.savedAt = s.tick;

@@ -29,7 +29,7 @@ import type { Input } from '../engine/input';
 import { keyLabel, ACTIONS, ACTION_LABELS } from '../engine/input';
 import type { GameLoop } from '../engine/loop';
 import type { Controller } from './control';
-import type { Tutorial } from './tutorial';
+import { Tutorial, type Rect } from './tutorial';
 import { Chronicle } from './chronicle';
 import { UI, COL } from './ui';
 import { audio } from '../engine/audio';
@@ -52,7 +52,7 @@ export interface HudDeps {
   quit: () => void;
   /** save the match (the host only); false when it couldn't */
   save?: () => boolean;
-  /** Boot Camp steps, in the tutorial match */
+  /** Boot Camp steps in the tutorial match, First Orders in a newcomer's other matches */
   tutorial?: Tutorial;
   /** play again from the end screen (offline only): the same map, or a new seed */
   rematch?: (sameMap: boolean) => void;
@@ -71,8 +71,6 @@ const POWER_H = 13;
 const TOP_H = 14;
 /** message feed: lines shown and how long each lasts (ms) */
 const MSG_LINES = 3, MSG_MS = 6000;
-/** the getting-started checklist goes away after this many seconds even if unfinished */
-const OBJECTIVES_UNTIL = 600;
 /** what one click of a gift button sends an ally */
 const GIFT = { cash: 250, oil: 50 };
 
@@ -98,7 +96,6 @@ export class Hud {
   alertAt: [number, number] | null = null;
   /** teams whose supremacy clock we already announced */
   private supSeen = new Set<number>();
-  private objectivesDone = false;
   /** the match's story so far, for the end screen */
   private chronicle = new Chronicle();
   private manual = new FieldManual();
@@ -109,6 +106,8 @@ export class Hud {
   private guide = new FieldGuide();
   powerCard = false;
   buildPage = false;
+  /** where guide-worthy HUD buttons were drawn this frame, by name (the guide points at them) */
+  marks: Record<string, Rect> = {};
   hideEnd = false;
   private endSeen = false;
   private sellArmed = 0;
@@ -145,7 +144,7 @@ export class Hud {
     const s = this.s, me = this.me, myTeam = s.players[me].team;
     this.chronicle.record(s, ev);
     // (Boot Camp teaches in its own way)
-    if (!this.d.tutorial?.active) this.manual.onEvents(s, me, ev);
+    if (!(this.d.tutorial?.active && this.d.tutorial.program === 'bootcamp')) this.manual.onEvents(s, me, ev);
     for (const e of ev) {
       switch (e.e) {
         case 'reject':
@@ -320,14 +319,16 @@ export class Hud {
   draw(now: number) {
     const { ui, input: inp, ctl } = this.d;
     const s = this.s;
+    this.marks = {};
 
     // Esc peels back one layer at a time
     if (inp.wasPressed('menu')) {
       inp.consume('menu');
       if (ctl.mode.m !== 'normal') ctl.mode = { m: 'normal' };
+      // an open window first: it sits over everything else
+      else if (this.panel !== 'none') this.panel = 'none';
       else if (this.buildPage) this.buildPage = false;
       else if (this.powerCard) this.powerCard = false;
-      else if (this.panel !== 'none') this.panel = 'none';
       else this.panel = 'menu';
     }
     if (inp.wasPressed('research')) this.toggle('research');
@@ -366,6 +367,8 @@ export class Hud {
     else if (this.panel === 'stats') this.stats(false);
     else if (this.panel === 'menu') this.menu();
     else if (this.panel === 'guide' && !this.guide.draw(this.ui, now / 1000)) this.panel = 'none';
+    // the guide lights up the button to press next, over every panel
+    if (!s.over) this.d.tutorial?.drawMark(ui, this.marks, s.tick);
     if (s.over && !this.hideEnd) this.endScreen();
   }
 
@@ -421,6 +424,7 @@ export class Hud {
     const btn = (label: string, key: string, tip: string, active: boolean, onClick: () => void) => {
       const w = textWidth(label) + 10;
       rx -= w;
+      this.marks['top:' + label] = { x: rx, y: 1, w, h: TOP_H - 2 };
       if (ui.button(rx, 1, w, TOP_H - 2, { label, tip: `${tip} (${keyLabel(key)})`, active })) onClick();
       rx -= 2;
     };
@@ -808,7 +812,8 @@ export class Hud {
         const locked = d.tech && !p.techs.includes(d.tech);
         const poor = p.cash < d.cost.cash || p.oil < d.cost.oil;
         const [bx, by] = slot(i);
-        const costTxt = `$${d.cost.cash}${d.cost.oil ? ` + ${d.cost.oil} oil` : ''}`;
+        const costTxt = `${d.cost.cash}${d.cost.oil ? ` + ${d.cost.oil} oil` : ''}`;
+        this.marks['build:' + kind] = { x: bx, y: by, w: BTN_W, h: BTN_H };
         if (ui.button(bx, by, BTN_W, BTN_H, {
           icon: sprite(`b:${kind}`, viewColor(s, this.me)), hotkey: 'Key' + d.hotkey, disabled: !!locked,
           tip: `${d.name}  ${costTxt}\n${d.desc}${locked ? `\nNeeds ${TECH_BY_ID.get(d.tech!)?.name}` : ''}\nBuild time ${d.buildTime}s`,
@@ -825,6 +830,7 @@ export class Hud {
       let i = 0;
       const b = (label: string, key: string, tip: string, active: boolean, act: () => void, disabled = false) => {
         const [bx, by] = slot(i++);
+        this.marks['cmd:' + label] = { x: bx, y: by, w: BTN_W, h: BTN_H };
         if (ui.button(bx, by, BTN_W, BTN_H, { label, hotkey: key, tip, active, disabled })) act();
       };
       const ids = units.map((u) => u.id);
@@ -966,7 +972,8 @@ export class Hud {
     const cost = unitCost(s, this.me, kind);
     const locked = d.tech && !p.techs.includes(d.tech);
     const poor = p.cash < cost.cash || p.oil < cost.oil;
-    const costTxt = `$${Math.round(cost.cash)}${cost.oil ? ` + ${Math.round(cost.oil)} oil` : ''}`;
+    const costTxt = `${Math.round(cost.cash)}${cost.oil ? ` + ${Math.round(cost.oil)} oil` : ''}`;
+    this.marks['train:' + kind] = { x: bx, y: by, w: BTN_W, h: BTN_H };
     if (ui.button(bx, by, BTN_W, BTN_H, {
       icon: sprite(`u:${kind}:2`, viewColor(s, this.me)), hotkey: 'Key' + d.hotkey, disabled: !!locked,
       tip: `${d.name}  ${costTxt}  ${ICON.supply}${d.supply}\n${d.desc}\n${matchupText(kind).join('\n')}${locked ? `\nNeeds ${TECH_BY_ID.get(d.tech!)?.name}` : ''}\nShift: queue 5`,
@@ -1016,6 +1023,7 @@ export class Hud {
     const cost = powerCost(p, id);
     const poor = p.cp < cost;
     const label = w > 60 ? `${def.name}` : SHORT_POWER[id];
+    this.marks['power:' + id] = { x, y, w, h };
     if (ui.button(x, y, w, h, {
       label, hotkey: keys ? 'Key' + def.hotkey : undefined, disabled: locked || cd > 0, cooldown: cd,
       active: ctl.mode.m === 'power' && ctl.mode.power === id,
@@ -1066,12 +1074,12 @@ export class Hud {
       }
       y += 15;
     }
-    if (this.d.tutorial?.active) this.d.tutorial.draw(ui, s, this.me, ctl, this.d.cam, x, y);
-    // Field Manual cards wait while a doctrine or a city's specialty is being chosen, and while there is no room
-    else if (!p.doctrinePending && !s.cities.some((c) => c.owner === this.me && c.specPending)) {
-      const top = y;
-      y += this.manual.draw(ui, x, y, s.tick / TICK_RATE, floor - y);
-      if (top === TOP_H + 16) this.objectives(x, y, floor);
+    const tut = this.d.tutorial;
+    if (tut?.active && !s.over) y += tut.draw(ui, s, this.me, ctl, this.d.cam, this, x, y);
+    // Field Manual cards wait while a doctrine or a city's specialty is being chosen, during Boot
+    // Camp, and while there is no room
+    if (!(tut?.active && tut.program === 'bootcamp') && !p.doctrinePending && !s.cities.some((c) => c.owner === this.me && c.specPending)) {
+      this.manual.draw(ui, x, y, s.tick / TICK_RATE, floor - y);
     }
   }
 
@@ -1117,34 +1125,6 @@ export class Hud {
   }
 
   /** First-match guidance: a short checklist that ticks itself off, then goes away. */
-  private objectives(x: number, y: number, floor: number) {
-    const ui = this.ui, s = this.s, p = s.players[this.me];
-    if (this.objectivesDone || s.tick > OBJECTIVES_UNTIL * TICK_RATE) return;
-    const have = (kind: string) => Object.values(s.ents).some((e) => e.t === 'b' && e.owner === this.me && e.kind === kind && e.built >= 1);
-    const items: [string, boolean, string][] = [
-      ['Build a Mine on ore', have('mine'), 'Select a Builder, press B, then pick the Mine and click an ore deposit.'],
-      ['Build a Barracks', have('barracks'), 'Barracks train infantry: riflemen capture cities.'],
-      ['Capture a city', s.cities.some((c) => c.owner === this.me), 'Send infantry into the dashed circle around a city and keep enemies out until the bar fills.'],
-      ['Start research (F2)', p.techs.length > 0 || !!p.research.cur, 'Techs unlock units and bonuses. Each era also offers a doctrine.'],
-      ['Build a Factory', have('factory'), 'Factories build tanks; they need oil from a Derrick.'],
-    ];
-    if (items.every((i) => i[1])) { this.objectivesDone = true; return; }
-    const w = 128, h = 13 + items.length * 9;
-    if (y + h > floor) return;
-    ui.ctx.globalAlpha = 0.8;
-    ui.rect(x, y, w, h, COL.shadow);
-    ui.ctx.globalAlpha = 1;
-    ui.text('Getting started', x + 4, y + 3, COL.gold);
-    items.forEach(([label, done, tip], i) => {
-      const ly = y + 13 + i * 9;
-      ui.rect(x + 4, ly + 1, 5, 5, done ? COL.green : COL.edge);
-      if (!done) ui.rect(x + 5, ly + 2, 3, 3, COL.shadow);
-      ui.text(label, x + 12, ly, done ? COL.dim : COL.text);
-      if (ui.hover(x, ly - 1, w, 9)) ui.setTip(`${label}\n${tip}`, x + w / 2, ly);
-    });
-    ui.block(x, y, w, h);
-  }
-
   // ------------------------------------------------------------------ chat
 
   /** Online: Enter opens a chat line above the command card; incoming lines join the message feed. */
@@ -1222,6 +1202,7 @@ export class Hud {
         const why = have ? null : techBlocked(p, t.id);
         const cost = techCost(s, p, t.id);
         const ally = s.players.some((o) => o.id !== p.id && o.team === p.team && o.techs.includes(t.id));
+        this.marks['tech:' + t.id] = { x: cx, y: by, w: colW, h: rowH - 2 };
         const hit = ui.button(cx, by, colW, rowH - 2, {
           active: cur || qi >= 0, disabled: have || (!!why && t.era > p.era + 1),
           tip: `${t.name}  (${cost} science)\n${t.desc}${why && !have ? `\n${cap(why)}` : ''}${ally ? '\nAn ally knows this: 25% cheaper.' : ''}${!have ? '\nClick: research. Click again: cancel.' : ''}`,
@@ -1331,13 +1312,9 @@ export class Hud {
 
   private menu() {
     const ui = this.ui, sess = this.d.session, loop = this.d.loop;
-    const w = 160, h = 146 + (this.d.save ? 18 : 0);
-    const [x, y] = this.window(w, h, 'Menu');
-    let by = y + 18;
-    const b = (label: string, act: () => void, opts: { color?: string; disabled?: boolean; tip?: string } = {}) => {
-      if (ui.button(x + 6, by, w - 12, 16, { label, ...opts })) act();
-      by += 18;
-    };
+    type Row = { label: string; act: () => void; opts?: { color?: string; disabled?: boolean; tip?: string } };
+    const rows: Row[] = [];
+    const b = (label: string, act: () => void, opts?: Row['opts']) => rows.push({ label, act, opts });
     b('Resume', () => (this.panel = 'none'));
     const solo = sess.host && sess.status() === '';
     if (solo) b(`Speed: ${loop.speed}x`, () => { const sp = [0.5, 1, 1.5, 2, 3]; loop.speed = sp[(sp.indexOf(loop.speed) + 1) % sp.length]; }, { tip: 'Game speed (single player only)' });
@@ -1347,6 +1324,13 @@ export class Hud {
       if (save()) this.say('Game saved. Continue it from the title screen.', COL.green);
       else this.say('Could not save: browser storage is full or blocked.', COL.red);
     }, { tip: 'One save slot. The match also saves itself every minute.' });
+    if (this.d.tutorial?.program !== 'bootcamp') {
+      const on = !!this.d.tutorial?.active;
+      b(`First orders: ${on ? 'on' : 'off'}`, () => {
+        if (on) this.d.tutorial!.hide();
+        else { Tutorial.showOrders(); this.d.tutorial = new Tutorial('orders'); }
+      }, { tip: 'Step-by-step orders for the opening:\nwhat to click next, with arrows.' });
+    }
     b('How to play', () => (this.panel = 'help'));
     b('Field Guide', () => (this.panel = 'guide'), { tip: 'Every unit and building: what it costs, what it does, what it beats.' });
     b(`Colors: ${viewer.friendFoe ? 'friend or foe' : 'players'}`, () => setFriendFoe(!viewer.friendFoe),
@@ -1357,6 +1341,10 @@ export class Hud {
       else this.surrenderArmed = performance.now();
     }, { color: COL.red });
     b('Quit to title', () => this.d.quit(), { color: armed ? COL.red : undefined });
+    // the window fits its buttons
+    const w = 160, h = 22 + rows.length * 18;
+    const [x, y] = this.window(w, h, 'Menu');
+    rows.forEach((r, i) => { if (ui.button(x + 6, y + 18 + i * 18, w - 12, 16, { label: r.label, ...r.opts })) r.act(); });
   }
 
   private endScreen() {

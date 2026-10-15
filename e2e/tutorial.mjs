@@ -39,14 +39,8 @@ const play = async (name, fn, seconds = 1) => {
   if (after <= before) errors.push(`step "${name}" did not tick off (${before} -> ${after})`);
   await shot(name);
 };
-await play('02-pick-builder', () => { const sc = window.__app.screen; sc.cam.cx += 32 * 10; });
-await play('03-mine', () => {
-  const sc = window.__app.screen, s = sc.session.state;
-  const b = Object.values(s.ents).find((e) => e.t === 'u' && e.owner === 0 && e.kind === 'builder');
-  sc.ctl.selected.clear(); sc.ctl.selected.add(b.id);
-  const hq = Object.values(s.ents).find((e) => e.t === 'b' && e.owner === 0 && e.kind === 'hq');
-  sc.cam.centerOn(hq.x, hq.y);
-});
+// (the Mine step itself walks a player through picking a Builder)
+await play('02-mine', () => { const sc = window.__app.screen; sc.cam.cx += 32 * 10; });
 const build = (kind) => page.evaluate((kind) => {
   const sc = window.__app.screen, s = sc.session.state;
   const hq = Object.values(s.ents).find((e) => e.t === 'b' && e.owner === 0 && e.kind === 'hq');

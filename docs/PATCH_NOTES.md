@@ -2,6 +2,22 @@
 
 Newest first. Play at https://ycgnem.github.io/pixel-rts/
 
+## 2026-10-14: First orders
+
+- **New players get step-by-step orders in any match,** not just Boot Camp. A card at the top
+  left tells you the very next thing to click, and it changes as you go. Pick a Builder, then
+  Build, then the Mine, then the ore. A gold arrow marks the spot on the map ("Ore", "Builder",
+  the city's name), and a blinking frame marks the button to press.
+- **Research is no longer a mystery:** the orders open the tech tree with you, point at a good
+  first tech (Deep Mining) and say that it finishes by itself while you play.
+- **The orders cover the opening:** mine ore, start research, take a city with your starting
+  Riflemen, pump oil, raise a Barracks and build a Factory. Each one says why it matters.
+- They go away for good once you have finished them. Click **Hide** to stop them early, or turn
+  them back on from **Menu > First orders**.
+- **Boot Camp** uses the same smarter steps and no longer has a separate "pick a Builder" step.
+- **Esc** now closes an open window (Research, Stats, Help) before anything behind it.
+- The in-match menu no longer cuts off its last button.
+
 ## 2026-10-14: A map worth looking at
 
 ### Camera

@@ -37,6 +37,7 @@ port 5180, or take its address as an argument:
 npx vite --port 5180         # in one terminal
 npm run e2e                  # smoke test: title, Field Guide, skirmish, panels, save and Continue, an AI match
 npm run e2e:tutorial         # plays Boot Camp step by step
+npm run e2e:orders           # follows First Orders in a Quick battle with real clicks
 npm run e2e:readability      # a 6-team, 300-unit battle screenshot
 npm run e2e:twists           # insurgency's Drop and a contract tender's Bid, through the real HUD
 node e2e/perf.mjs            # frame times for the PLAN's fps checks

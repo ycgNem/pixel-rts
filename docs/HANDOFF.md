@@ -4,7 +4,32 @@ Running notes for whoever (human or AI session) picks this up next. Newest statu
 
 ## Status
 
-**2026-10-14 (latest) — map graphics pass and WASD camera.** Committed and pushed to `main`
+**2026-10-14 (latest) — First Orders: a guided opening in every newcomer's match.** Committed
+and pushed to `main` (live at https://ycgnem.github.io/pixel-rts/). Player-facing summary:
+[PATCH_NOTES.md](PATCH_NOTES.md) ("First orders").
+
+- `src/ui/tutorial.ts` is one guide engine with two programs: Boot Camp (the tutorial match, now
+  10 steps) and First Orders (any other match while `localStorage['pixel-rts.orders']` is unset;
+  set to `done` when finished, `off` by Hide; Menu > First orders clears it). Each step's `hint(c)`
+  returns the next click for what is selected and open: text, a map spot with a label, or a HUD
+  button name.
+- HUD buttons the guide can point at are recorded each frame in `Hud.marks` (`cmd:<label>`,
+  `build:<kind>`, `train:<kind>`, `top:<label>`, `tech:<id>`, `power:<id>`, `guide:close`);
+  `Tutorial.drawMark` draws the blinking frame and arrow after every panel. The old hover-only
+  "Getting started" checklist is gone.
+- Fixed along the way: Esc closes an open window before the build page behind it; the in-match
+  menu sizes itself to its buttons (its last button used to spill out); a map target just under
+  the top bar now counts as off screen (its arrow had covered the Research button).
+- Checks: `npm run e2e:orders` (real clicks on whatever the guide highlights; 4 of 4 random maps
+  passed), `npm run e2e:tutorial`, smoke, twists, controls, 140 unit tests.
+- Driving the game from the desktop app's browser pane: its clicks arrive without a mouse move, so
+  the canvas UI (which hit-tests the last hovered spot) often misses them. Hover first, or use the
+  Playwright scripts / `window.__app` like the e2e checks do.
+- Next ideas for onboarding: the guide's map arrow is small at UI scale 1 (an 800×600 window);
+  hints for later systems (doctrines, city specialties) could join the Field Manual cards; a real
+  newcomer playtest of First Orders is still the open M14 box.
+
+**2026-10-14 — map graphics pass and WASD camera.** Committed and pushed to `main`
 (live at https://ycgnem.github.io/pixel-rts/). Player-facing summary: [PATCH_NOTES.md](PATCH_NOTES.md).
 
 How the map is drawn now (read this before touching terrain art):

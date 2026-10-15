@@ -13,6 +13,7 @@
     "test": "vitest run",
     "e2e": "node e2e/smoke.mjs",
     "e2e:tutorial": "node e2e/tutorial.mjs",
+    "e2e:orders": "node e2e/orders.mjs",
     "e2e:readability": "node e2e/readability.mjs",
     "e2e:twists": "node e2e/twists.mjs"
   },
