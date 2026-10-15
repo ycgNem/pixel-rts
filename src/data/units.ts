@@ -98,7 +98,7 @@ export const UNITS: Record<string, UnitDef> = {
   },
   lighttank: {
     id: 'lighttank', name: 'Light Tank', cls: 'vehicle', armor: 'heavy', layer: 'ground',
-    hp: 320, speed: 2.2, sight: 8, radius: 0.4, cost: { cash: 250, oil: 45 }, supply: 2, buildTime: 14,
+    hp: 380, speed: 2.2, sight: 8, radius: 0.4, cost: { cash: 300, oil: 55 }, supply: 2, buildTime: 18,
     at: ['factory'], ability: 'smoke', hotkey: 'L',
     weapons: [
       { cls: 'cannon', dmg: 34, range: 5.5, cd: 1.8, hits: G, speed: 18, splash: 0.5 },

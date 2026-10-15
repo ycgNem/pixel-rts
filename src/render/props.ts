@@ -77,6 +77,8 @@ export class Props {
     for (const st of s.map.starts) take(Math.floor(st.x), Math.floor(st.y), 6);
     for (const d of s.map.deposits) take(d.x, d.y, 2);
     for (const c of s.map.cities) take(c.x, c.y, 3);
+    for (const b of s.map.bridges ?? [])
+      for (let t = 0; t <= 1; t += 0.1) take(Math.floor(b.x0 + (b.x1 - b.x0) * t), Math.floor(b.y0 + (b.y1 - b.y0) * t), Math.ceil(b.w / 2) + 1);
     const cityDist = (x: number, y: number) => Math.min(...s.map.cities.map((c) => Math.hypot(c.x - x, c.y - y)));
     const startDist = (x: number, y: number) => Math.min(...s.map.starts.map((c) => Math.hypot(c.x - x, c.y - y)));
     const trees = [...spriteNames('tree:d'), ...spriteNames('tree:c'), ...spriteNames('tree:x')];

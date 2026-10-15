@@ -143,6 +143,9 @@ const ticks = (page, n) => page.evaluate((n) => { const sc = window.__app.screen
         sc.session.send({ t: 'build', p: 0, ids, kind, tx: Math.round(hq.tx + Math.cos(k / 16 * 6.283) * r), ty: Math.round(hq.ty + Math.sin(k / 16 * 6.283) * r) });
         sc.session.tick();
       }
+      // a Factory needs a finished Barracks
+      const done = () => Object.values(s.ents).some((e) => e.t === 'b' && e.owner === 0 && e.kind === kind && e.built >= 1);
+      for (let i = 0; i < 20 * 90 && !done(); i++) sc.session.tick();
     }
     sc.session.tick();
   });

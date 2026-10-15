@@ -3,6 +3,7 @@
 import { UNITS, type UnitDef } from '../data/units';
 import { BUILDINGS } from '../data/buildings';
 import { COMBAT, SEPARATION } from '../data/rules';
+import { T, TERRAIN } from '../data/terrain';
 import type { Ent, MatchState, Unit } from './types';
 import { DT } from './types';
 import { distTo, sec } from './world';
@@ -192,6 +193,12 @@ export function stepMovement(s: MatchState) {
   }
 }
 
+/** set by `separate`: the unit touched a friendly unit that is on the move */
+let crowded = false;
+
+/** a flow field's cost for one tile of open ground */
+const PLAIN_COST = TERRAIN[T.GRASS].cost;
+
 /** Move toward a goal. Returns true when arrived (or when the goal can't be reached). */
 function steer(s: MatchState, n: Nav, u: Unit, d: UnitDef, g: Goal): boolean {
   const dist = Math.hypot(g.x - u.x, g.y - u.y);
@@ -200,6 +207,9 @@ function steer(s: MatchState, n: Nav, u: Unit, d: UnitDef, g: Goal): boolean {
     return true;
   }
   let ax = g.x, ay = g.y;
+  // progress is measured along the path (field cost ÷ a plain tile's cost), so a detour to a
+  // bridge, or a wait in the queue to cross it, isn't mistaken for being stuck
+  let pathLeft = -1;
   if (d.layer !== 'air') {
     const direct = dist < 16 && lineWalkable(n, d.layer, u.x, u.y, g.x, g.y, d.radius * 0.7);
     if (!direct) {
@@ -210,6 +220,7 @@ function steer(s: MatchState, n: Nav, u: Unit, d: UnitDef, g: Goal): boolean {
         // unreachable: give up on this goal
         return true;
       }
+      pathLeft = here / PLAIN_COST;
       // follow the field a few steps and aim at the farthest step we can see
       let ti = cy * n.w + cx, aim = -1;
       for (let k = 0; k < 5; k++) {
@@ -236,11 +247,14 @@ function steer(s: MatchState, n: Nav, u: Unit, d: UnitDef, g: Goal): boolean {
     u.mv = true;
     turnToward(u, d, Math.atan2(vy, vx));
   }
+  crowded = false;
   const groupStop = separate(s, n, u, d, true);
   // progress tracking: give up if we stop getting closer for a while
   const nd = Math.hypot(g.x - u.x, g.y - u.y);
-  if (nd < u._best - 0.05) { u._best = nd; u._stuck = 0; }
-  else u._stuck++;
+  const left = pathLeft >= 0 ? pathLeft : nd;
+  if (left < u._best - 0.05) { u._best = left; u._stuck = 0; }
+  // waiting in a moving column (a bridge, a pass) is patience, not being stuck
+  else u._stuck += crowded ? SEPARATION.queuePatience : 1;
   if (groupStop && nd < 3) return true;
   if (u._stuck > sec(nd < 3 ? 1.5 : 6)) return true;
   return nd <= Math.max(g.arrive, 0.12);
@@ -301,6 +315,7 @@ function separate(s: MatchState, n: Nav, u: Unit, d: UnitDef, moving: boolean): 
         px += (dx / dist) * push * w * min;
         py += (dy / dist) * push * w * min;
         if (moving && grp >= 0 && o.owner === u.owner && !o.order && !o.mv && o._grp === grp) stop = true;
+        if (moving && o.mv && o.owner === u.owner) crowded = true;
       }
     }
   if (px || py) {

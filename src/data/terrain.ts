@@ -10,6 +10,7 @@ export const T = {
   MOUNTAIN: 6,
   ROAD: 7,
   RICH: 8, // scorched rich-ore ground around a rich deposit (looks like dirt, behaves like grass)
+  BRIDGE: 9, // a bridge over a river: troops cross on the deck, boats pass underneath
 } as const;
 export type TerrainId = (typeof T)[keyof typeof T];
 
@@ -38,4 +39,5 @@ export const TERRAIN: TerrainDef[] = [
   { name: 'Mountains', ground: 0, naval: false, buildable: false, sight: 0, cost: 0, mini: 6 },
   { name: 'Road', ground: 1.3, naval: false, buildable: true, sight: 0, cost: 7, mini: 4 },
   { name: 'Rich ground', ground: 1, naval: false, buildable: true, sight: 0, cost: 10, mini: 3 },
+  { name: 'Bridge', ground: 1.3, naval: true, buildable: false, sight: 0, cost: 7, mini: 7 },
 ];

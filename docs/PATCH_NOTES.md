@@ -2,6 +2,30 @@
 
 Newest first. Play at https://ycgnem.github.io/pixel-rts/
 
+## 2026-10-14: Rivers, busy Builders and slower tanks
+
+- **A river now winds across Pangaea and Lakes maps,** from one edge through the middle to the
+  other, splitting the players into two sides. **Two stone bridges** cross it, one on each side of
+  the middle, and roads lead over both. They are the only way across on foot, so hold them.
+  Boats can sail up the river and under the bridges.
+- **Maps are a bit bigger:** Small 144, Medium 224, Large 288 tiles across.
+- **Builders never stand around while there's work.** An idle Builder walks over to any of your
+  unfinished buildings by itself, and every project gets one Builder before any gets two. With
+  several Builders selected, a new building takes just one of them; Shift-placing a row of
+  buildings hands each to a different Builder.
+- **Tanks come later:** the Factory needs a finished Barracks first and costs $700. A Light Tank
+  costs $300 + 55 oil and takes 18 s (it's a little tougher, 380 HP). You start with 100 oil,
+  enough for one tank; after that you need an Oil Derrick.
+- **Oil explains itself:** the top bar says "oil" and shows "build a Derrick" in gold while you
+  pump none. Buttons show their oil price in the top-right corner, in red when you're short.
+  Hover an oil well or ore field on the map to see what to build there. If you can't afford
+  something, the message says exactly what's missing.
+- **City specialties are easy to spot:** when a city grows into a Town, a panel lists every
+  specialty and what it does; one click picks it. The city also blinks "pick a specialty!" on
+  the map.
+- Large groups no longer give up halfway when they have to queue for a bridge or detour around
+  water.
+
 ## 2026-10-14: First orders
 
 - **New players get step-by-step orders in any match,** not just Boot Camp. A card at the top

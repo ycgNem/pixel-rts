@@ -10,6 +10,8 @@ export interface BuildingDef {
   cost: Cost;
   buildTime: number;
   tech?: string;
+  /** a finished building of this kind must stand first */
+  needs?: string;
   sight: number;
   /** must sit exactly on a deposit of this kind */
   on?: 'ore' | 'oil';
@@ -49,8 +51,8 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     hotkey: 'B', desc: 'Trains infantry.',
   },
   factory: {
-    id: 'factory', name: 'Factory', w: 4, h: 3, hp: 1500, cost: { cash: 600, oil: 0 }, buildTime: 45, sight: 6,
-    hotkey: 'F', desc: 'Builds vehicles.',
+    id: 'factory', name: 'Factory', w: 4, h: 3, hp: 1500, cost: { cash: 700, oil: 0 }, buildTime: 50, sight: 6,
+    needs: 'barracks', hotkey: 'F', desc: 'Builds vehicles (they run on oil).',
   },
   lab: {
     id: 'lab', name: 'Research Lab', w: 2, h: 2, hp: 600, cost: { cash: 400, oil: 0 }, buildTime: 30, sight: 5,

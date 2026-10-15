@@ -8,12 +8,12 @@ import { SPECS } from '../data/cities';
 import { DOCTRINES } from '../data/techs';
 import { PRODUCTION } from '../data/rules';
 import type { Building, Command, MatchState, SimEvent, Unit } from './types';
-import { allied, buildingMaxHp, enemies, insurgent, unitCost, unitMaxHp } from './world';
+import { allied, buildingMaxHp, enemies, insurgent, missingBuilding, shortfall, unitCost, unitMaxHp } from './world';
 import { dropBlocked, dropPartisans } from './insurgency';
 import { bidBlocked, placeBid } from './contracts';
 import { placeBuilding, removeEnt } from './lifecycle';
 import { give, orderMove } from './orders';
-import { techBlocked, newProdItem, TECH_BY_ID } from './economy';
+import { techBlocked, newProdItem, crewCounts, TECH_BY_ID } from './economy';
 import { cityTrains } from './cities';
 import { trainsAt } from './laststand';
 import { trade, tradeBlocked } from './exchange';
@@ -63,17 +63,24 @@ export function applyCommand(s: MatchState, c: Command, ev: SimEvent[]) {
       const d = BUILDINGS[c.kind];
       if (!d || d.start) return reject('cannot build that');
       if (d.tech && !pl.techs.includes(d.tech)) return reject(`needs ${TECH_BY_ID.get(d.tech)?.name}`);
+      const need = missingBuilding(s, c.p, c.kind);
+      if (need) return reject(`build a ${BUILDINGS[need].name} first`);
       const builders = mine(c.ids).filter((u) => UNITS[u.kind].builds);
       if (!builders.length) return reject('no builders');
       const why = placementProblem(s, c.p, c.kind, c.tx, c.ty);
       if (why) return reject(why);
-      if (pl.cash < d.cost.cash || pl.oil < d.cost.oil) return reject('not enough resources');
+      const short = shortfall(pl, d.cost);
+      if (short) return reject(short);
       pl.cash -= d.cost.cash;
       pl.oil -= d.cost.oil;
       const dep = d.on ? s.map.deposits.findIndex((k) => k.x === c.tx && k.y === c.ty && k.kind === d.on) : -1;
       const b = placeBuilding(s, c.kind, c.p, c.tx, c.ty, 0, dep);
       ev.push({ e: 'placed', id: b.id, kind: b.kind, owner: c.p });
-      for (const u of builders) give(u, { o: 'build', t: b.id }, !!c.q);
+      // one Builder per project: the best placed one takes it, and the rest of the selection
+      // pitches in only if it has nothing else to do (and not when queueing a row of buildings)
+      const lead = leadBuilder(s, c.p, builders, b.x, b.y, !!c.q);
+      give(lead.u, { o: 'build', t: b.id }, lead.q);
+      if (!c.q) for (const u of builders) if (u !== lead.u && !u.order && !u.queue.length) give(u, { o: 'build', t: b.id }, false);
       break;
     }
     case 'assist': {
@@ -100,7 +107,7 @@ export function applyCommand(s: MatchState, c: Command, ev: SimEvent[]) {
       const n = Math.max(1, Math.min(PRODUCTION.queueMax, c.n | 0));
       for (let i = 0; i < n; i++) {
         if (prod.length >= PRODUCTION.queueMax) break;
-        if (pl.cash < cost.cash || pl.oil < cost.oil) { if (i === 0) reject('not enough resources'); break; }
+        if (pl.cash < cost.cash || pl.oil < cost.oil) { if (i === 0) reject(shortfall(pl, cost)!); break; }
         pl.cash -= cost.cash;
         pl.oil -= cost.oil;
         prod.push(newProdItem(c.kind));
@@ -287,3 +294,22 @@ export function placementProblem(s: MatchState, p: number, kind: string, tx: num
   }
   return null;
 }
+
+/**
+ * Which of the selected Builders takes a new building: an idle one first, then one whose current
+ * project already has company (it moves over now), then the least busy (queued behind its work
+ * when the player queued the order). Nearest wins a tie.
+ */
+function leadBuilder(s: MatchState, p: number, builders: Unit[], x: number, y: number, queue: boolean): { u: Unit; q: boolean } {
+  const crew = crewCounts(s, p);
+  let best: { u: Unit; q: boolean } | null = null, bk = Infinity;
+  for (const u of builders) {
+    const shared = u.order?.o === 'build' && !u.queue.length ? crew[u.order.t] ?? 0 : 0;
+    const tier = !u.order && !u.queue.length ? 0 : shared > 1 ? 1 : 2;
+    const pending = (u.order ? 1 : 0) + u.queue.length;
+    const k = tier * 1e6 + (tier === 1 ? -shared : tier === 2 ? pending : 0) * 1e4 + Math.hypot(u.x - x, u.y - y);
+    if (k < bk) { bk = k; best = { u, q: tier === 2 && queue }; }
+  }
+  return best!;
+}
+

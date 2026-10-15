@@ -4,7 +4,31 @@ Running notes for whoever (human or AI session) picks this up next. Newest statu
 
 ## Status
 
-**2026-10-14 (latest) — First Orders: a guided opening in every newcomer's match.** Committed
+**2026-10-14 (latest) — rivers, busy Builders, slower tanks, oil and specialty clarity.**
+Committed and pushed to `main` (live at https://ycgnem.github.io/pixel-rts/). Player-facing summary: [PATCH_NOTES.md](PATCH_NOTES.md) ("Rivers, busy
+Builders and slower tanks"); the decisions log in PLAN.md has the numbers.
+
+- Builders: `stepCrews` and `crewCounts` in `src/sim/economy.ts`, `leadBuilder` in
+  `src/sim/commands.ts`. Humans only; the AI's `economy()` still places its own crews.
+- River: `carveRiver` in `src/sim/mapgen.ts` (`MAPGEN.river`), terrain `T.BRIDGE`, decks on
+  `GameMap.bridges`, drawn by `Painter.bridges` (`src/render/painter.ts`). Check with
+  `node e2e/bridges.mjs <url> <outDir>` and `node scripts/run.mjs scripts/mapshot.ts`.
+- Movement: progress is measured along the flow field, and queueing behind moving friendlies
+  barely counts toward giving up (`SEPARATION.queuePatience`); `scripts/dev/bridgecross.ts`.
+- Oil and specialty UI: `Hud.topBar`, `Hud.depositTip`, `Hud.choices`, `ButtonOpts.oil`;
+  screenshots with `node e2e/clarity.mjs <url> <outDir>`.
+- Checks: 143 unit tests; e2e smoke, tutorial, orders (updated: the Factory now waits for the
+  Barracks), controls, overlap, twists, bridges, clarity all pass.
+- Perf: `e2e/perf.mjs` large-pan-zoom now shows 65–90 ms work at p95 (was 2.8 ms). It is the
+  same with the river switched off, and chunk paint cost is unchanged (~51 ms average per chunk,
+  bridges add 10–20 ms to the ~8 chunks beside them), so the cause is the regenerated map and
+  camera path: fast pans over unbaked chunks bake on the spot. **Open, next up:** bake ahead
+  further in the pan direction (track camera velocity), and/or split `Painter.paint` into row
+  bands painted over several frames with the `overview` canvas as a placeholder. Target: p95
+  under ~20 ms over 3 runs (the case is noisy). A session for this was started and stopped
+  before it changed anything.
+
+**2026-10-14 — First Orders: a guided opening in every newcomer's match.** Committed
 and pushed to `main` (live at https://ycgnem.github.io/pixel-rts/). Player-facing summary:
 [PATCH_NOTES.md](PATCH_NOTES.md) ("First orders").
 

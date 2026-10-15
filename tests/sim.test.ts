@@ -101,6 +101,40 @@ describe('economy', () => {
     expect(bar.blocked).toBe(true);
   });
 
+  it('idle Builders join unfinished buildings by themselves, one Builder per project first', () => {
+    const s = match({ startMul: 10, players: setup().players.map((p, i) => ({ ...p, kind: i === 0 ? 'human' : 'passive' })) });
+    const [a, b] = unitsOf(s, 0, 'builder');
+    const [x, y] = spotNear(s, 0, 'barracks');
+    // only the first Builder is told to build; the idle second one joins it by itself
+    run(s, 1, [{ t: 'build', p: 0, ids: [a.id], kind: 'barracks', tx: x, ty: y }]);
+    const bar = Object.values(s.ents).find((e): e is Building => e.t === 'b' && e.kind === 'barracks')!;
+    expect(a.order).toEqual({ o: 'build', t: bar.id });
+    expect(b.order).toEqual({ o: 'build', t: bar.id });
+    // a second project with both selected: one moves over, the other keeps building the first
+    const hq = hqOf(s, 0);
+    const dep = s.map.deposits.filter((d) => d.kind === 'ore').sort((p, q) => Math.hypot(p.x - hq.x, p.y - hq.y) - Math.hypot(q.x - hq.x, q.y - hq.y))[0];
+    run(s, 0.05, [{ t: 'build', p: 0, ids: [a.id, b.id], kind: 'mine', tx: dep.x, ty: dep.y }]);
+    const mineB = Object.values(s.ents).find((e): e is Building => e.t === 'b' && e.kind === 'mine')!;
+    expect([a, b].map((u) => (u.order as { t: number }).t).sort()).toEqual([bar.id, mineB.id].sort());
+    // the AI places its own crews
+    const ai = match({ startMul: 10 });
+    const [c, d] = unitsOf(ai, 0, 'builder');
+    run(ai, 1, [{ t: 'build', p: 0, ids: [c.id], kind: 'barracks', tx: x, ty: y }]);
+    expect(d.order).toBeNull();
+  });
+
+  it('queued buildings go to different Builders', () => {
+    const s = match({ startMul: 10 });
+    const ids = unitsOf(s, 0, 'builder').map((u) => u.id);
+    const [x, y] = spotNear(s, 0, 'barracks');
+    run(s, 0.05, [{ t: 'build', p: 0, ids, kind: 'barracks', tx: x, ty: y, q: true }]);
+    const [x2, y2] = spotNear(s, 0, 'lab');
+    run(s, 0.05, [{ t: 'build', p: 0, ids, kind: 'lab', tx: x2, ty: y2, q: true }]);
+    const targets = unitsOf(s, 0, 'builder').map((u) => (u.order as { t: number } | null)?.t);
+    expect(new Set(targets).size).toBe(2);
+    expect(unitsOf(s, 0, 'builder').every((u) => !u.queue.length)).toBe(true);
+  });
+
   it('refuses commands for things you cannot afford, have not unlocked or do not own', () => {
     const s = match();
     s.players[0].cash = 0;

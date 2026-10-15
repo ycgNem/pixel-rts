@@ -76,12 +76,18 @@ Everything borrowed gets a twist of our own.
 
 ## 3. The map
 
-- **Tile grid, 32 × 32 px tiles** (art drawn in a high top-down ¾ view). Sizes: Small 128²,
-  Medium 192², Large 256² (recommended for 5–6 players).
+- **Tile grid, 32 × 32 px tiles** (art drawn in a high top-down ¾ view). Sizes: Small 144²,
+  Medium 224², Large 288² (recommended for 5–6 players).
 - **Generated from a seed.** The same seed and settings always give the same map, so online
   clients rebuild it instead of downloading it. Map types:
   - **Pangaea**: one landmass; every start can walk to every other (guaranteed).
   - **Lakes**: mostly land broken up by lakes; starts connected by land (guaranteed).
+  - **The river** (Pangaea and Lakes): a winding river runs from the map edge through the middle
+    and out again, splitting the players into two sides (2 v 2, 3 v 3; 2 v 1 and 3 v 2 with odd
+    counts). Each half runs along the gap between two neighbouring starts, so no start sits on
+    it. **Two bridges** cross it, one on each half and the same distance from the middle, and a
+    road leads over each. They are the only ways across on foot: chokepoints worth holding.
+    Boats sail the river and pass under the bridges.
   - **Continents** and **Islands**: every start gets **its own landmass**, separated from the
     others and from a **neutral middle island** by sea channels (continents: narrow straits;
     islands: wide, deep channels). Each home has 2 villages, 2 ore and 1 oil. The capital city and
@@ -106,6 +112,7 @@ Everything borrowed gets a twist of our own.
 | Hills | slower | — | ✓ | extra sight for units on them |
 | Mountains | blocked | — | ✓ | |
 | Sand / shore | normal | — | ✓ | docks must touch water; transports land here |
+| Bridge | faster | ✓ (underneath) | ✓ | crosses the river; not buildable |
 | Water, deep water | blocked | ✓ | ✓ | |
 
 ---
@@ -123,7 +130,13 @@ Everything borrowed gets a twist of our own.
 - **Extractors work on their own.** A Mine on an ore deposit produces cash forever; no workers
   carry anything. Mines and derricks are targets to raid and defend. A destroyed derrick burns.
 - Deposits never run out. The pressure to expand comes from cities.
-- **Start:** HQ, 2 Builders, 4 Riflemen, $1,000, 200 oil, 2 Command Points.
+- **Start:** HQ, 2 Builders, 4 Riflemen, $1,000, 100 oil (one tank's worth: more takes a
+  Derrick), 2 Command Points.
+- **Oil is explained where you need it:** the top bar shows "N oil" and, while no oil comes in,
+  "build a Derrick" in gold; every button that costs oil shows its oil price (the oil drop and a
+  number) in its top-right corner, red when you are short; hovering an open oil well or ore field
+  says what to build there and how; and "not enough" messages say what is missing ("need 20 more
+  oil (Oil Derricks on oil wells make oil)").
 
 | Source | Output |
 |---|---|
@@ -146,7 +159,13 @@ becoming a second income. Mercantilism and Global Markets make trades pay more.
 ## 5. Buildings
 
 Builders construct buildings. A Builder places a foundation and the building rises over time.
-More Builders on one building build it faster. Builders also repair, for 30% of the cost: at most
+More Builders on one building build it faster. **One Builder per project, and no idle crews:**
+placing a building with several Builders selected sends one of them (an idle one first, then
+one whose building already has company, nearest first); the rest join only if they had nothing
+to do, and Shift-queued buildings each go to a different Builder. A human player's idle Builder
+(no orders, not on hold) walks by itself to the nearest unfinished building within 60 tiles that
+has the fewest Builders, so every project gets one before any gets a second. (The AI places its
+own crews.) Builders also repair, for 30% of the cost: at most
 three count, each heals at most 40 HP/s, and **nobody can patch a building with an armed enemy
 within 6 tiles**. A building cancelled during construction refunds 75%; a finished one can be sold
 (click twice). With no rally point, new ground units walk a few tiles clear of the door.
@@ -157,7 +176,7 @@ within 6 tiles**. A building cancelled during construction refunds 75%; a finish
 | Mine | 2×2, on ore | 600 | $250 | start | $3.5/s |
 | Oil Derrick | 2×2, on oil | 600 | $300 | start | 1 oil/s |
 | Barracks | 3×3 | 1,000 | $300 | start | Trains infantry |
-| Factory | 4×3 | 1,500 | $600 | start | Trains vehicles |
+| Factory | 4×3 | 1,500 | $700 | a finished Barracks | Trains vehicles |
 | Research Lab | 2×2 | 600 | $400 | start | +1.5 science/s |
 | Gun Turret | 1×1 | 500 | $200 | Fortification | Defense against ground units |
 | Airfield | 4×5 | 1,800 | $800 + 100 oil | Flight | Trains aircraft |
@@ -184,7 +203,7 @@ Every weapon says which layers it can hit.
 | Rocket Trooper | Barracks | Rocketry | $130 | 1 | Anti-vehicle: beats Light Tanks cost for cost. Captures. |
 | Flak Trooper | Barracks | Anti-Air | $100 | 1 | Anti-air infantry |
 | Scout Car | Factory | start | $150 + 10 oil | 1 | Fast, long sight, light gun. Recon flare. |
-| Light Tank | Factory | start | $250 + 45 oil | 2 | Main battle unit early on: cannon plus a machine gun. Smoke screen. |
+| Light Tank | Factory | start | $300 + 55 oil | 2 | Main battle unit early on: cannon plus a machine gun. 380 HP, 18 s to build. Smoke screen. |
 | Heavy Tank | Factory | Heavy Armor | $500 + 100 oil | 3 | Breaks defensive lines. Cannon plus a machine gun. 820 HP: beats Light Tanks cost for cost; Rocket Troopers beat it. |
 | Artillery | Factory | Artillery | $400 + 70 oil | 3 | Long range, splash. Barrage. |
 | Flak Truck | Factory | Anti-Air | $250 + 30 oil | 2 | Mobile anti-air |
@@ -321,7 +340,10 @@ opening.
 - Cities can't be destroyed, only captured. They give sight around them.
 - **Level 3+ cities train Riflemen.**
 - **Specialties:** at level 2 a city picks one. It keeps it until the city changes hands (the new
-  owner picks again):
+  owner picks again). The choice is put in front of the player: a panel at the top left ("Redcliff
+  is now a Town! Choose its specialty") lists every specialty with what it does, one click picks
+  it (no need to find and select the city; **Show** looks at it), and the city blinks "pick a
+  specialty!" on the map until then:
 
 | Specialty | Effect |
 |---|---|

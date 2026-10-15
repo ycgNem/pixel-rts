@@ -2,7 +2,7 @@
 // pixel is `scale` device pixels (a whole number, so the pixel art stays crisp).
 import type { Input } from '../engine/input';
 import { audio } from '../engine/audio';
-import { drawText, textWidth, wrapText, LINE_H } from './font';
+import { drawText, textWidth, wrapText, LINE_H, ICON } from './font';
 import { drawSprite, type Sprite } from '../render/art';
 
 export const COL = {
@@ -19,6 +19,8 @@ export const COL = {
   green: '#1ebc73',
   blue: '#4d9be6',
   shadow: '#1a1420',
+  /** oil: its icon and prices */
+  oil: '#b0a7b8',
 };
 
 export interface ButtonOpts {
@@ -36,6 +38,9 @@ export interface ButtonOpts {
   badgeColor?: string;
   /** put the badge in the top-right corner, so the label has the whole bottom line */
   badgeTop?: boolean;
+  /** an oil price in the top-right corner (with the oil drop) */
+  oil?: number;
+  oilColor?: string;
   /** cooldown 0..1 overlay */
   cooldown?: number;
   color?: string;
@@ -219,6 +224,7 @@ export class UI {
     }
     if (o.hotkey && w >= 16 && keyLetter(o.hotkey).length <= 2) this.text(keyLetter(o.hotkey), x + 3, y + 2, o.disabled ? COL.dim : COL.gold);
     if (o.badge) this.textRight(o.badge, x + w - 3, o.badgeTop ? y + 2 : y + h - 10, o.badgeColor ?? COL.white);
+    if (o.oil) this.textRight(`${ICON.oil}${o.oil}`, x + w - 3, y + 2, o.oilColor ?? COL.oil);
     if (hov && o.tip) this.tip = { text: o.tip, x: x + w / 2, y };
     if (o.disabled) {
       if (hov && this.input.mouse.pressed[0]) this.input.consumeMouse(0);

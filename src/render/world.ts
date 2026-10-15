@@ -497,6 +497,12 @@ export class WorldRenderer {
         if (c.owner >= 0 && s.tick < c.calm) { outlined(ctx, 'unrest', Math.round(cx - textWidth('unrest') * ui / 2), line, '#e83b3b', ui); line += 8 * ui; }
         if (c.resistFor >= 0 && s.tick < c.resistUntil) { outlined(ctx, 'resisting', Math.round(cx - textWidth('resisting') * ui / 2), line, '#f79617', ui); line += 8 * ui; }
         if (capital) { outlined(ctx, 'capital', Math.round(cx - textWidth('capital') * ui / 2), line, '#f9c22b', ui); line += 8 * ui; }
+        // our city waits for its specialty: say so on the map, blinking
+        if (c.owner === v.me && c.specPending && Math.floor(v.time * 2.5) % 2 === 0) {
+          const t = 'pick a specialty!';
+          outlined(ctx, t, Math.round(cx - textWidth(t) * ui / 2), line, '#f9c22b', ui);
+          line += 8 * ui;
+        }
       }
       line = this.jobLabel(ctx, s, c, cx, line, v);
       // insurgents re-founding a government here: the clock everyone is racing
@@ -867,4 +873,4 @@ export class WorldRenderer {
 }
 
 // specialty glyphs after a city's name (pictures, so they can't be misread as Roman numerals)
-const SPEC_ICON: Record<string, string> = { industry: ICON.cog, academy: ICON.science, fortress: ICON.shield, market: ICON.coin, port: ICON.anchor };
+export const SPEC_ICON: Record<string, string> = { industry: ICON.cog, academy: ICON.science, fortress: ICON.shield, market: ICON.coin, port: ICON.anchor };

@@ -12,7 +12,7 @@ import { AI_RANDOM_STYLES } from '../data/ai';
 import { placeBuilding, spawnUnit, removeEnt, armyValue } from './lifecycle';
 import { sec } from './world';
 import { applyCommand } from './commands';
-import { stepIncome, stepResearch, stepConstruction, stepTraining, incomeOf } from './economy';
+import { stepIncome, stepResearch, stepConstruction, stepCrews, stepTraining, incomeOf } from './economy';
 import { stepCities, stepPartisans, stepResistance } from './cities';
 import { acquireTargets, fireWeapons, stepShots, cityGuns, stepFires } from './combat';
 import { stepMovement } from './move';
@@ -85,6 +85,7 @@ export function step(s: MatchState, cmds: Command[]): SimEvent[] {
   stepExchange(s);
   stepResearch(s, ev);
   stepConstruction(s, ev);
+  stepCrews(s);
   stepTraining(s, ev);
   stepCities(s, ev);
   stepPartisans(s);

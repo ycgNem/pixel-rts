@@ -137,7 +137,7 @@ function trainHint(c: Ctx, at: string, kind: string): Hint {
   if (!ready.length) {
     const b = nearest(bs, home(c));
     if (!b) return { text: `First build a ${ad.name}.` };
-    return { text: `Your ${ad.name} is going up (${pct(b.built)}). Builders build faster together: select another and right-click it.`, at: b, label: ad.name };
+    return { text: `Your ${ad.name} is going up (${pct(b.built)}). Idle Builders come and help by themselves.`, at: b, label: ad.name };
   }
   if (!selectedBuilding(c, at)) return { text: `Click your ${ad.name} to select it.`, at: nearest(ready, home(c)), label: ad.name };
   const cost = unitCost(c.s, c.me, kind);

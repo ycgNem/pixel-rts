@@ -4,7 +4,7 @@ import { T, TERRAIN } from '../data/terrain';
 import { MAPGEN, MAP_SIZES } from '../data/rules';
 import { CITY_NAMES } from '../data/cities';
 import { BUILDINGS } from '../data/buildings';
-import type { CitySeed, Deposit, GameMap, MatchSetup } from './types';
+import type { Bridge, CitySeed, Deposit, GameMap, MatchSetup } from './types';
 import { fbm, hashStr, rand, randInt, shuffle, type RngHolder } from './rng';
 import { Heap } from './heap';
 
@@ -83,7 +83,8 @@ export function generateMap(setup: MatchSetup): GameMap {
   const forestCut = plains[Math.floor(plains.length * (1 - MAPGEN.forest / (1 - MAPGEN.mountains - MAPGEN.hills)))] ?? 1;
   for (let i = 0; i < w * h; i++) if (terrain[i] === T.GRASS && forestNoise[i] > forestCut) terrain[i] = T.FOREST;
 
-  const isLand = (i: number) => terrain[i] !== T.WATER && terrain[i] !== T.DEEP;
+  const bridges: Bridge[] = [];
+  const isLand = (i: number) => terrain[i] !== T.WATER && terrain[i] !== T.DEEP && terrain[i] !== T.BRIDGE;
   const stamp = (x0: number, y0: number, r: number, to: number, only?: (t: number) => boolean) => {
     for (let y = Math.floor(y0 - r); y <= Math.ceil(y0 + r); y++)
       for (let x = Math.floor(x0 - r); x <= Math.ceil(x0 + r); x++) {
@@ -92,6 +93,9 @@ export function generateMap(setup: MatchSetup): GameMap {
         if (!only || only(terrain[i])) terrain[i] = to;
       }
   };
+
+  // ---- 1c. a river with two bridges across the land-war maps
+  if (n > 1 && MAPGEN.river.on.includes(type)) carveRiver();
 
   // ---- 2. start positions on a ring, cleared and flattened
   const starts: { x: number; y: number }[] = [];
@@ -279,9 +283,87 @@ export function generateMap(setup: MatchSetup): GameMap {
     c.coastal = coastal;
   }
 
-  return { w, h, terrain, deposits, starts, cities };
+  return { w, h, terrain, deposits, starts, cities, ...(bridges.length ? { bridges } : {}) };
 
   // ---- helpers that need the closure ----
+
+  /**
+   * The river: a curve from the map edge through the middle and out again, each half along the
+   * gap between two neighbouring starts (opposite gaps when the player count is even, so it runs
+   * straight), wandering a little. Two bridges cross it, the same distance from the middle.
+   */
+  function carveRiver() {
+    const o = MAPGEN.river;
+    const gap = Math.PI / n;
+    const aA = angle0 + gap, aB = angle0 + gap + (Math.floor(n / 2) * 2 * Math.PI) / n;
+    const far = size * 0.75;
+    const A = { x: cx + Math.cos(aA) * far, y: cy + Math.sin(aA) * far };
+    const B = { x: cx + Math.cos(aB) * far, y: cy + Math.sin(aB) * far };
+    // a quadratic curve through the middle at t = 0.5
+    const K = { x: 2 * cx - (A.x + B.x) / 2, y: 2 * cy - (A.y + B.y) / 2 };
+    const steps = Math.ceil(far * 6);
+    const pts: { x: number; y: number }[] = [];
+    for (let k = 0; k <= steps; k++) {
+      const t = k / steps, u = 1 - t;
+      const x = u * u * A.x + 2 * t * u * K.x + t * t * B.x;
+      const y = u * u * A.y + 2 * t * u * K.y + t * t * B.y;
+      pts.push({ x, y });
+    }
+    // wander sideways (not at the very middle, so it stays fair), along the normal of the curve
+    const out = pts.map((p, k) => {
+      const a = pts[Math.max(0, k - 1)], b = pts[Math.min(pts.length - 1, k + 1)];
+      const tl = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      const nx = -(b.y - a.y) / tl, ny = (b.x - a.x) / tl;
+      const t = k / steps;
+      const amp = o.meander * Math.min(1, Math.abs(t - 0.5) * 8);
+      const m = ((fbm(t * 8, 0.5, seed + 811, 3) - 0.5) * 2.4 + (fbm(t * 26, 3.5, seed + 812, 2) - 0.5) * 0.9) * amp;
+      return { x: p.x + nx * m, y: p.y + ny * m };
+    });
+    // a little wider here and there
+    out.forEach((p, k) => stamp(p.x, p.y, o.width / 2 + (fbm(k / 40, 7.5, seed + 813, 2) > 0.55 ? 0.6 : 0), T.WATER, (t) => t !== T.DEEP));
+    // the bridges: on each half, where the river is `bridgeAt` × size from the middle
+    const D = size * o.bridgeAt;
+    for (const half of [0, 1]) {
+      let best = -1, bd = Infinity;
+      for (let k = 12; k < out.length - 12; k++) {
+        if ((k < steps / 2) !== (half === 0)) continue;
+        const d = Math.abs(Math.hypot(out[k].x - cx, out[k].y - cy) - D);
+        if (d < bd) { bd = d; best = k; }
+      }
+      if (best < 0) continue;
+      // square to the river's general course here, not to its every wiggle
+      const p = out[best], a = out[Math.max(0, best - 12)], b = out[Math.min(out.length - 1, best + 12)];
+      const tl = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      const nx = -(b.y - a.y) / tl, ny = (b.x - a.x) / tl;
+      // the deck spans the water and rests a tile onto each bank
+      let lo = 0, hi = 0;
+      while (lo < 12 && !isDry(p.x - nx * (lo + 1), p.y - ny * (lo + 1))) lo++;
+      while (hi < 12 && !isDry(p.x + nx * (hi + 1), p.y + ny * (hi + 1))) hi++;
+      const br: Bridge = { x0: p.x - nx * (lo + 1.6), y0: p.y - ny * (lo + 1.6), x1: p.x + nx * (hi + 1.6), y1: p.y + ny * (hi + 1.6), w: o.bridgeWidth };
+      bridges.push(br);
+      const len = Math.hypot(br.x1 - br.x0, br.y1 - br.y0);
+      for (let y = Math.floor(Math.min(br.y0, br.y1) - 3); y <= Math.ceil(Math.max(br.y0, br.y1) + 3); y++)
+        for (let x = Math.floor(Math.min(br.x0, br.x1) - 3); x <= Math.ceil(Math.max(br.x0, br.x1) + 3); x++) {
+          if (!inside(x, y)) continue;
+          // distance from the tile's middle to the deck's center line
+          const px = x + 0.5 - br.x0, py = y + 0.5 - br.y0;
+          const along = (px * (br.x1 - br.x0) + py * (br.y1 - br.y0)) / len;
+          const across = Math.abs(px * ny - py * nx);
+          if (along < 0 || along > len || across > br.w / 2) continue;
+          const i = idx(x, y);
+          if (terrain[i] === T.WATER || terrain[i] === T.DEEP) terrain[i] = T.BRIDGE;
+          // a clear landing at each end
+          else if (TERRAIN[terrain[i]].ground === 0 || terrain[i] === T.FOREST) terrain[i] = T.GRASS;
+        }
+    }
+  }
+
+  function isDry(x: number, y: number): boolean {
+    const tx = Math.floor(x), ty = Math.floor(y);
+    if (!inside(tx, ty)) return true;
+    const t = terrain[idx(tx, ty)];
+    return t !== T.WATER && t !== T.DEEP;
+  }
 
   /**
    * Water channels along the borders between the starts and the middle (a Voronoi diagram with
@@ -375,6 +457,24 @@ export function generateMap(setup: MatchSetup): GameMap {
       inTree.push(best[1]);
       left.delete(best[1]);
     }
+    // every bridge gets a road: from the nearest town or start on one bank, over, to the nearest on the other
+    const towns = nodes.length;
+    for (const br of bridges) {
+      const ends = [[br.x0, br.y0], [br.x1, br.y1]].map(([x, y]) => ({ x: Math.max(0, Math.min(w - 1, Math.round(x))), y: Math.max(0, Math.min(h - 1, Math.round(y))) }));
+      const [e0, e1] = [nodes.length, nodes.length + 1];
+      nodes.push(...ends);
+      edges.push([e0, e1]);
+      for (const e of [e0, e1]) {
+        const other = nodes[e === e0 ? e1 : e0];
+        let near = -1, nd = Infinity;
+        for (let k = 0; k < towns; k++) {
+          const d = Math.hypot(nodes[k].x - nodes[e].x, nodes[k].y - nodes[e].y);
+          // a town on this bank: nearer this end than the other one
+          if (d < nd && d <= Math.hypot(nodes[k].x - other.x, nodes[k].y - other.y)) { nd = d; near = k; }
+        }
+        if (near >= 0) edges.push([near, e]);
+      }
+    }
     const cost = new Float64Array(w * h);
     const from = new Int32Array(w * h);
     const heap = new Heap(4096);
@@ -398,7 +498,7 @@ export function generateMap(setup: MatchSetup): GameMap {
           if (!inside(nx, ny)) continue;
           const j = idx(nx, ny);
           const t = terrain[j];
-          let c = t === T.ROAD ? 0.4 : t === T.GRASS || t === T.SAND || t === T.RICH ? 1 : t === T.HILL ? 2.5 : t === T.FOREST ? 2.2 : Infinity;
+          let c = t === T.ROAD || t === T.BRIDGE ? 0.4 : t === T.GRASS || t === T.SAND || t === T.RICH ? 1 : t === T.HILL ? 2.5 : t === T.FOREST ? 2.2 : Infinity;
           if (c === Infinity) continue;
           if (nearDep[j]) c += 20;
           const nc = cost[i] + c;
@@ -419,7 +519,7 @@ export function generateMap(setup: MatchSetup): GameMap {
       for (let prev = -1, i = g; i >= 0; prev = i, i = from[i]) {
         const next = from[i];
         if (underHq(i) && !((prev >= 0 && !underHq(prev)) || (next >= 0 && !underHq(next)))) continue;
-        terrain[i] = T.ROAD;
+        if (terrain[i] !== T.BRIDGE) terrain[i] = T.ROAD;
       }
     }
   }

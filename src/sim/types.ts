@@ -49,7 +49,11 @@ export interface GameMap {
   deposits: Deposit[];
   starts: { x: number; y: number }[];
   cities: CitySeed[];
+  /** river bridges: a deck from (x0, y0) to (x1, y1) in tiles, `w` tiles wide (drawn by the painter) */
+  bridges?: Bridge[];
 }
+
+export interface Bridge { x0: number; y0: number; x1: number; y1: number; w: number }
 
 export interface Research { cur: string | null; prog: number; queue: string[] }
 

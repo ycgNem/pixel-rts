@@ -1,7 +1,7 @@
 // Map generator: determinism, fair starts, connectivity (M1 "done when").
 import { describe, expect, it } from 'vitest';
 import { generateMap, mapHash } from '../src/sim/mapgen';
-import { TERRAIN } from '../src/data/terrain';
+import { T, TERRAIN } from '../src/data/terrain';
 import type { GameMap } from '../src/sim/types';
 import { setup } from './helpers';
 
@@ -99,6 +99,27 @@ describe('map generator', () => {
         const comp = groundComponent(m, m.starts[0].x, m.starts[0].y);
         for (const st of m.starts) expect(comp[st.y * m.w + st.x], `${mapType} seed ${seed}`).toBe(1);
       }
+  });
+
+  it('runs a river with exactly two bridges between the sides on pangaea and lakes maps (2-6 players, 10 seeds)', () => {
+    for (const mapType of ['pangaea', 'lakes'] as const)
+      for (let seed = 1; seed <= 10; seed++) {
+        const n = 2 + (seed % 5);
+        const m = generateMap(setup({ seed, mapType, mapSize: n > 4 ? 'large' : 'medium' }, n));
+        const tag = `${mapType} seed ${seed} ${n}p`;
+        expect(m.bridges, tag).toHaveLength(2);
+        const bridgeTiles = m.terrain.filter((t) => t === T.BRIDGE).length;
+        expect(bridgeTiles, tag).toBeGreaterThan(6);
+        // with the bridges every start reaches every other; without them the river splits them
+        const all = groundComponent(m, m.starts[0].x, m.starts[0].y);
+        for (const st of m.starts) expect(all[st.y * m.w + st.x], tag).toBe(1);
+        const dry = { ...m, terrain: m.terrain.map((t) => (t === T.BRIDGE ? T.WATER : t)) };
+        const side = groundComponent(dry, m.starts[0].x, m.starts[0].y);
+        const across = m.starts.filter((st) => !side[st.y * m.w + st.x]).length;
+        // as even a split as the player count allows (2 v 2, 2 v 1, 3 v 3...)
+        expect(Math.abs(across - n / 2), tag).toBeLessThanOrEqual(0.5);
+      }
+    for (const mapType of ['continents', 'islands'] as const) expect(generateMap(setup({ seed: 3, mapType }, 4)).bridges).toBeUndefined();
   });
 
   it('puts every start on its own landmass with two cities, two ore and an oil (islands, continents; 50 seeds)', () => {

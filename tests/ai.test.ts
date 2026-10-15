@@ -12,6 +12,7 @@ import { VICTORY } from '../src/data/rules';
 import { placementProblem } from '../src/sim/commands';
 import { hurt, placeBuilding, spawnUnit } from '../src/sim/lifecycle';
 import { incomeOf } from '../src/sim/economy';
+import { TECHS } from '../src/data/techs';
 
 function aiMatch(seed: number, personalities: (AiPersonality | undefined)[] = [undefined, undefined], type: MatchSetup['mapType'] = 'pangaea') {
   const st = setup({ seed, mapType: type, weather: true, crates: true }, personalities.length);
@@ -69,8 +70,12 @@ describe('AI', () => {
     for (const p of s.players) {
       const path = AI_PLANS[styles[p.id] ?? 'balanced'].research;
       expect(p.techs.length, `P${p.id} techs`).toBeGreaterThanOrEqual(2);
-      // the techs come in the order the personality lists them (none were blocked this early)
-      expect(p.techs, `P${p.id} (${styles[p.id] ?? 'balanced'})`).toEqual(path.slice(0, p.techs.length));
+      // the techs come in the order the personality lists them: every tech is on its path, and the
+      // first-era ones (never blocked) in exactly that order; a later-era tech the path names early
+      // waits for its era, so the next one on the path goes first
+      const era0 = (ids: string[]) => ids.filter((id) => TECHS.find((t) => t.id === id)!.era === 0);
+      expect(p.techs.every((t) => path.includes(t)), `P${p.id} stays on its path`).toBe(true);
+      expect(era0(p.techs), `P${p.id} (${styles[p.id] ?? 'balanced'})`).toEqual(era0(path).slice(0, era0(p.techs).length));
       firsts.add(p.techs.slice(0, 2).join());
     }
     // and the personalities really do open differently

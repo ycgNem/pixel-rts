@@ -139,7 +139,7 @@ export class FieldGuide {
     this.swatches(ui, x, y + box + 3, box);
     const tx = x + box + 8, tw = w - box - 8;
     ui.text(d.name, tx, y, COL.gold);
-    const where = d.start ? 'You start with one' : `${d.on ? `Built on ${d.on}` : d.coastal ? 'Built on a coast' : 'Built anywhere on land'}${d.tech ? `, needs ${TECH_NAME.get(d.tech) ?? d.tech}` : ''}`;
+    const where = d.start ? 'You start with one' : `${d.on ? `Built on ${d.on}` : d.coastal ? 'Built on a coast' : 'Built anywhere on land'}${d.tech ? `, needs ${TECH_NAME.get(d.tech) ?? d.tech}` : ''}${d.needs ? `, after a ${BUILDINGS[d.needs].name}` : ''}`;
     ui.text(ellipsize(where, tw), tx, y + 10, COL.light);
     ui.text(`${d.start ? '' : `${cost(d.cost)}   ${ICON.clock}${d.buildTime}s   `}${d.w}x${d.h} tiles`, tx, y + 22, COL.text);
     ui.text(`${ICON.heart}${d.hp} HP   sight ${d.sight}`, tx, y + 32, COL.text);

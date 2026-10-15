@@ -11,7 +11,7 @@ import { tradeBlocked, tradeQuote } from '../sim/exchange';
 import { powerCost, supplyDropCash } from '../sim/powers';
 import type { Building, City, MatchState, SimEvent, Unit } from '../sim/types';
 import { TICK_RATE } from '../sim/types';
-import { unitMaxHp, buildingMaxHp, unitCost, hqOf, allied, exileCapital, insurgent } from '../sim/world';
+import { unitMaxHp, buildingMaxHp, unitCost, hqOf, allied, exileCapital, insurgent, missingBuilding } from '../sim/world';
 import { charges, chestTroops, dropBlocked, squadProgress } from '../sim/insurgency';
 import { bidBlocked, jobReward, minBid, supplyFloor, topBid } from '../sim/contracts';
 import type { ContractKind } from '../sim/types';
@@ -20,6 +20,7 @@ import { captureRadius, cityTrains } from '../sim/cities';
 import { darkness } from '../sim/weather';
 import { score, supremacyFrom, supremacyShare, timeLimitOf } from '../sim/victory';
 import { sprite } from '../render/art';
+import { SPEC_ICON } from '../render/world';
 import { NEUTRAL_UI, viewColor, viewUi, viewer, setFriendFoe } from '../render/colors';
 import type { Camera } from '../render/view';
 import type { Minimap } from '../render/minimap';
@@ -357,6 +358,7 @@ export class Hud {
     this.choices();
     this.chatBox();
     this.messages(now);
+    this.depositTip();
     if (ctl.mode.m === 'place' && ctl.placeWhy) {
       ui.textCenter(cap(ctl.placeWhy), ui.mx, ui.my + 14, COL.red);
     }
@@ -370,6 +372,24 @@ export class Hud {
     // the guide lights up the button to press next, over every panel
     if (!s.over) this.d.tutorial?.drawMark(ui, this.marks, s.tick);
     if (s.over && !this.hideEnd) this.endScreen();
+  }
+
+  /** Hovering an open ore field or oil well on the map says what it is and how to use it. */
+  private depositTip() {
+    const ui = this.ui, s = this.s, ctl = this.d.ctl;
+    if (ui.mouseOverUI || ctl.mode.m !== 'normal' || ctl.hover || this.panel !== 'none') return;
+    const tx = Math.floor(ctl.mx), ty = Math.floor(ctl.my);
+    const dep = s.map.deposits.find((d) => tx >= d.x && tx < d.x + 2 && ty >= d.y && ty < d.y + 2);
+    if (!dep || (s.setup.fog !== 'off' && !ctl.fog.isExplored(tx, ty))) return;
+    const how = (b: string) => `Build ${b} here: select a Builder, press B, then ${BUILDINGS[b === 'a Mine' ? 'mine' : 'derrick'].hotkey}.`;
+    const tip = dep.kind === 'oil'
+      ? `Oil well
+${how('an Oil Derrick')}
+Oil pays for tanks and other vehicles, aircraft and ships.`
+      : `${dep.rich ? 'Rich ore (double income)' : 'Ore field'}
+${how('a Mine')}
+Mines earn cash for the rest of the match.`;
+    ui.setTip(tip, ui.mx, ui.my - 4);
   }
 
   /** Single player pauses the loop; an online host pauses the match for everyone. */
@@ -393,16 +413,19 @@ export class Hud {
     const inc = incomeOf(s, this.me);
     let x = 4;
     const y = 3;
-    const item = (icon: string, iconCol: string, main: string, sub: string, tip: string, mainCol = COL.white) => {
+    const item = (icon: string, iconCol: string, main: string, sub: string, tip: string, mainCol = COL.white, subCol = COL.dim) => {
       const x0 = x;
       x += ui.text(icon, x, y, iconCol) + 2;
       x += ui.text(main, x, y, mainCol);
-      if (sub) x += 2 + ui.text(sub, x + 2, y, COL.dim);
+      if (sub) x += 2 + ui.text(sub, x + 2, y, subCol);
       if (ui.hover(x0, 0, x - x0, TOP_H)) ui.setTip(tip, (x0 + x) / 2, TOP_H + 40);
       x += 10;
     };
     item(ICON.cash, COL.gold, '$' + fmt(p.cash), `+${Math.round(inc.cash * 60)}/m`, 'Cash\nFrom mines, cities and your HQ. Pays for everything.');
-    item(ICON.oil, '#b0a7b8', fmt(p.oil), `+${Math.round(inc.oil * 60)}/m`, 'Oil\nFrom derricks. Vehicles, aircraft and ships need it.');
+    // no oil coming in: say where it comes from, right in the bar
+    const dry = inc.oil <= 0 && p.alive;
+    item(ICON.oil, COL.oil, `${fmt(p.oil)} oil`, dry ? 'build a Derrick' : `+${Math.round(inc.oil * 60)}/m`,
+      `Oil\nPumped by Oil Derricks, built on oil wells (the dark pools on the map).\nTanks and other vehicles, aircraft and ships cost oil:\nthe ${ICON.oil} number on their buttons.\nYour HQ can also buy oil for cash (the exchange).`, COL.white, dry ? COL.gold : COL.dim);
     if (p.alive) {
       const r = p.research;
       const sci = r.cur ? `${TECH_BY_ID.get(r.cur)?.name} ${Math.floor((r.prog / techCost(s, p, r.cur)) * 100)}%` : 'idle';
@@ -809,15 +832,16 @@ export class Hud {
     if (units.length && this.buildPage) {
       BUILD_ORDER.forEach((kind, i) => {
         const d = BUILDINGS[kind];
-        const locked = d.tech && !p.techs.includes(d.tech);
-        const poor = p.cash < d.cost.cash || p.oil < d.cost.oil;
+        const need = missingBuilding(s, this.me, kind);
+        const locked = (d.tech && !p.techs.includes(d.tech)) || !!need;
         const [bx, by] = slot(i);
         const costTxt = `${d.cost.cash}${d.cost.oil ? ` + ${d.cost.oil} oil` : ''}`;
         this.marks['build:' + kind] = { x: bx, y: by, w: BTN_W, h: BTN_H };
         if (ui.button(bx, by, BTN_W, BTN_H, {
           icon: sprite(`b:${kind}`, viewColor(s, this.me)), hotkey: 'Key' + d.hotkey, disabled: !!locked,
-          tip: `${d.name}  ${costTxt}\n${d.desc}${locked ? `\nNeeds ${TECH_BY_ID.get(d.tech!)?.name}` : ''}\nBuild time ${d.buildTime}s`,
-          badge: locked ? '' : `${d.cost.cash}`, badgeColor: poor ? COL.red : COL.white,
+          tip: `${d.name}  ${costTxt}\n${d.desc}${d.tech && !p.techs.includes(d.tech) ? `\nNeeds ${TECH_BY_ID.get(d.tech)?.name}` : ''}${need ? `\nBuild a ${BUILDINGS[need].name} first` : ''}\nBuild time ${d.buildTime}s`,
+          badge: locked ? '' : `${d.cost.cash}`, badgeColor: p.cash < d.cost.cash ? COL.red : COL.white,
+          oil: locked ? 0 : d.cost.oil, oilColor: p.oil < d.cost.oil ? COL.red : COL.oil,
         })) {
           ctl.mode = { m: 'place', kind };
         }
@@ -971,13 +995,13 @@ export class Hud {
     const d = UNITS[kind];
     const cost = unitCost(s, this.me, kind);
     const locked = d.tech && !p.techs.includes(d.tech);
-    const poor = p.cash < cost.cash || p.oil < cost.oil;
     const costTxt = `${Math.round(cost.cash)}${cost.oil ? ` + ${Math.round(cost.oil)} oil` : ''}`;
     this.marks['train:' + kind] = { x: bx, y: by, w: BTN_W, h: BTN_H };
     if (ui.button(bx, by, BTN_W, BTN_H, {
       icon: sprite(`u:${kind}:2`, viewColor(s, this.me)), hotkey: 'Key' + d.hotkey, disabled: !!locked,
       tip: `${d.name}  ${costTxt}  ${ICON.supply}${d.supply}\n${d.desc}\n${matchupText(kind).join('\n')}${locked ? `\nNeeds ${TECH_BY_ID.get(d.tech!)?.name}` : ''}\nShift: queue 5`,
-      badge: locked ? '' : `${Math.round(cost.cash)}`, badgeColor: poor ? COL.red : COL.white,
+      badge: locked ? '' : `${Math.round(cost.cash)}`, badgeColor: p.cash < cost.cash ? COL.red : COL.white,
+      oil: locked ? 0 : Math.round(cost.oil), oilColor: p.oil < cost.oil ? COL.red : COL.oil,
     })) train(this.d.input.shift ? 5 : 1);
   }
 
@@ -1064,15 +1088,39 @@ export class Hud {
       y += 20 + opts.length * row;
     }
     if (insurgent(s, p) && !s.over) y += this.insurgency(x, y, w);
-    for (const c of s.cities) {
-      if (c.owner !== this.me || !c.specPending || !p.alive) continue;
-      const label = `${c.name}: pick a specialty`;
-      if (ui.button(x, y, w, 14, { label, color: COL.gold, tip: `${c.name} grew. Choose what it becomes.` })) {
+    // a city of ours grew into a Town: choose what it becomes, right here (one city at a time)
+    const pending = p.alive ? s.cities.filter((c) => c.owner === this.me && c.specPending) : [];
+    if (pending.length) {
+      const c = pending[0];
+      const sw = 214, ids = Object.keys(SPECS) as SpecId[];
+      // two lines of description per choice, one, or none: whatever fits above the powers
+      const extra = 28 + (pending.length > 1 ? 12 : 0);
+      const descLines = [2, 1, 0].find((n) => extra + ids.length * (14 + n * LINE_H + 2) <= floor - y) ?? 0;
+      const row = 14 + descLines * LINE_H + 2;
+      const ph = extra + ids.length * row;
+      ui.panel(x, y, sw, ph);
+      ui.text(`${c.name} is now a ${CITY_LEVELS[c.level - 1].name}!`, x + 5, y + 5, COL.gold);
+      ui.text('Choose its specialty (it keeps it):', x + 5, y + 15, COL.light);
+      if (ui.button(x + sw - 36, y + 3, 32, 11, { label: 'Show', tip: `Look at ${c.name}` })) {
         ctl.selected.clear();
         ctl.selCity = c.id;
         this.d.cam.centerOn(c.x, c.y);
       }
-      y += 15;
+      ids.forEach((id, i) => {
+        const sp = SPECS[id], by = y + 26 + i * row;
+        const bad = !!sp.coastal && !c.coastal;
+        if (ui.button(x + 4, by, sw - 8, row - 2, { disabled: bad, tip: `${sp.name}
+${sp.desc}${bad ? `
+${c.name} is not on the coast.` : ''}` })) {
+          ctl.send({ t: 'spec', p: this.me, city: c.id, spec: id });
+        }
+        ui.text(`${SPEC_ICON[id]} ${sp.name}`, x + 8, by + 3, bad ? COL.dim : COL.white);
+        const lines = wrapText(bad ? 'Coastal cities only.' : sp.desc, sw - 18);
+        if (lines.length > descLines) lines.splice(Math.max(0, descLines - 1), lines.length, ...(descLines ? [ellipsize(lines.slice(descLines - 1).join(' '), sw - 18)] : []));
+        lines.forEach((l, k) => ui.text(l, x + 8, by + 13 + k * LINE_H, COL.dim));
+      });
+      if (pending.length > 1) ui.text(`+${pending.length - 1} more ${pending.length > 2 ? 'cities' : 'city'} to choose for`, x + 5, y + ph - 11, COL.dim);
+      y += ph + 4;
     }
     const tut = this.d.tutorial;
     if (tut?.active && !s.over) y += tut.draw(ui, s, this.me, ctl, this.d.cam, this, x, y);

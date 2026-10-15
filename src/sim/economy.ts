@@ -5,7 +5,7 @@ import { CITY_LEVELS, SPECS } from '../data/cities';
 import { COMMAND } from '../data/powers';
 import { LAST_STAND, PRODUCTION, SUPPLY, VICTORY } from '../data/rules';
 import { ERAS, TECHS, TECHS_PER_ERA, TECH_COST, TECH_ESCALATE, ALLY_TECH_DISCOUNT, DOCTRINES, PERKS } from '../data/techs';
-import type { Building, City, MatchState, Player, ProdItem, SimEvent } from './types';
+import type { Building, City, MatchState, Player, ProdItem, SimEvent, Unit } from './types';
 import { DT, TICK_RATE } from './types';
 import { AI_LEVELS } from '../data/ai';
 import { buildingMaxHp, distTo, enemies, exileCapital, sec, unitCost } from './world';
@@ -13,8 +13,8 @@ import { nearEnemies } from './spatial';
 import { hasPerk, modAdd, modMul } from './mods';
 import { exitTile, spawnUnit } from './lifecycle';
 import { BUILD_REACH, nextOrder } from './move';
-import { orderMove } from './orders';
-import { nav, nearestPassable } from './nav';
+import { give, orderMove } from './orders';
+import { compOf, nav, nearestPassable, nearestReachable } from './nav';
 
 export const TECH_BY_ID = new Map(TECHS.map((t) => [t.id, t]));
 
@@ -220,6 +220,56 @@ export function stepConstruction(s: MatchState, ev: SimEvent[]) {
       for (const uid of crew) nextOrder(s.ents[uid] as never);
     }
   }
+}
+
+/** How many of player `p`'s Builders are working on (or walking to) each building, by id. */
+export function crewCounts(s: MatchState, p: number): Record<number, number> {
+  const out: Record<number, number> = {};
+  for (const id in s.ents) {
+    const u = s.ents[id];
+    if (u.t === 'u' && u.owner === p && u.order?.o === 'build') out[u.order.t] = (out[u.order.t] ?? 0) + 1;
+  }
+  return out;
+}
+
+/**
+ * Busy crews: a human player's idle Builders go to work on their unfinished buildings by
+ * themselves, the one with the fewest Builders first (then the nearest), so no project sits
+ * unattended while a Builder stands around. The AI places its own crews.
+ */
+export function stepCrews(s: MatchState) {
+  if (s.tick % PRODUCTION.autoEvery) return;
+  const sites: Building[][] = s.players.map(() => []);
+  const idle: Unit[][] = s.players.map(() => []);
+  for (const id in s.ents) {
+    const e = s.ents[id];
+    if (e.owner < 0 || s.players[e.owner].kind !== 'human') continue;
+    if (e.t === 'b') { if (e.built < 1 && e.hp > 0) sites[e.owner].push(e); }
+    else if (UNITS[e.kind].builds && !e.inside && !e.order && !e.queue.length && !e.hold) idle[e.owner].push(e);
+  }
+  const n = nav(s);
+  s.players.forEach((p, pi) => {
+    if (!sites[pi].length || !idle[pi].length) return;
+    const crew = crewCounts(s, pi);
+    for (const u of idle[pi]) {
+      const comp = compOf(n, 'ground', Math.floor(u.x), Math.floor(u.y));
+      let best: Building | null = null, bk = Infinity;
+      for (const b of sites[pi]) {
+        const d = Math.hypot(b.x - u.x, b.y - u.y);
+        if (d > PRODUCTION.autoRadius) continue;
+        const k = (crew[b.id] ?? 0) * 1e4 + d;
+        if (k >= bk) continue;
+        // only sites this Builder can walk up to
+        const near = nearestReachable(n, 'ground', Math.floor(b.x), Math.floor(b.y), comp, Math.ceil(BUILDINGS[b.kind].w / 2) + 2);
+        if (!near || distTo(b, near[0] + 0.5, near[1] + 0.5) > BUILD_REACH + 1) continue;
+        bk = k;
+        best = b;
+      }
+      if (!best) continue;
+      give(u, { o: 'build', t: best.id }, false);
+      crew[best.id] = (crew[best.id] ?? 0) + 1;
+    }
+  });
 }
 
 /** Is an armed enemy close enough to this building that Builders can't patch it up? */

@@ -19,7 +19,7 @@ import type { AiDifficulty, AiPersonality, Building, City, Command, Ent, MatchSt
 import { TICK_RATE } from '../types';
 import { placementProblem } from '../commands';
 import { nav, compOf, passable, nearestPassable, type Nav } from '../nav';
-import { unitCost, hqOf, enemies, unitMaxHp, buildingMaxHp, insurgent } from '../world';
+import { unitCost, hqOf, enemies, unitMaxHp, buildingMaxHp, insurgent, missingBuilding } from '../world';
 import { charges, chestTroops, dropBlocked, squadProgress } from '../insurgency';
 import { trainsAt } from '../laststand';
 import { armyValue } from '../lifecycle';
@@ -421,7 +421,7 @@ class Brain implements Ai {
   private nextBuilding(s: MatchState): string | null {
     const p = this.p, t = s.tick / TICK_RATE;
     const mines = this.count('mine'), derricks = this.count('derrick');
-    const unlocked = (k: string) => !BUILDINGS[k].tech || p.techs.includes(BUILDINGS[k].tech!);
+    const unlocked = (k: string) => (!BUILDINGS[k].tech || p.techs.includes(BUILDINGS[k].tech!)) && !missingBuilding(s, this.player, k);
     const freeOre = () => this.freeDeposits(s, 'ore').length > 0;
     const freeOil = () => this.freeDeposits(s, 'oil').length > 0;
     if (mines < 2 && freeOre()) return 'mine';
@@ -441,7 +441,7 @@ class Brain implements Ai {
     const producers = this.count('barracks') + this.count('factory') + this.count('airfield');
     if (p.cash - this.spent > AI_SPEND.cash && producers < AI_SPEND.maxProducers && this.count('barracks') > 0) {
       if (this.count('factory') > 0 && unlocked('airfield') && this.count('airfield') < Math.ceil(this.count('factory') / 2)) return 'airfield';
-      return this.count('factory') <= this.count('barracks') ? 'factory' : 'barracks';
+      return this.count('factory') <= this.count('barracks') && unlocked('factory') ? 'factory' : 'barracks';
     }
     if (unlocked('turret') && this.count('turret') < Math.min(4, Math.floor(this.minutes(s) / 5))) return 'turret';
     return null;

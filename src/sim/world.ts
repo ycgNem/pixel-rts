@@ -16,6 +16,28 @@ export function bdef(kind: string): BuildingDef {
   return BUILDINGS[kind];
 }
 
+/**
+ * What a player lacks to pay `cost`, in words ("$120 more", "30 more oil: Oil Derricks on oil wells
+ * make it"), or null when they can afford it.
+ */
+export function shortfall(p: Player, cost: { cash: number; oil: number }): string | null {
+  const cash = Math.ceil(cost.cash - p.cash), oil = Math.ceil(cost.oil - p.oil);
+  if (cash <= 0 && oil <= 0) return null;
+  const parts = [...(cash > 0 ? [`$${cash} more`] : []), ...(oil > 0 ? [`${oil} more oil`] : [])];
+  return `need ${parts.join(' and ')}${oil > 0 ? ' (Oil Derricks on oil wells make oil)' : ''}`;
+}
+
+/** The building player `p` must finish before placing `kind` (null when nothing is missing). */
+export function missingBuilding(s: MatchState, p: number, kind: string): string | null {
+  const need = BUILDINGS[kind]?.needs;
+  if (!need) return null;
+  for (const id in s.ents) {
+    const e = s.ents[id];
+    if (e.t === 'b' && e.owner === p && e.kind === need && e.built >= 1) return null;
+  }
+  return need;
+}
+
 export function ent(s: MatchState, id: number): Ent | undefined {
   return id ? s.ents[id] : undefined;
 }

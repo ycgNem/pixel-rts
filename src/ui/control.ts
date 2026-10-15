@@ -3,7 +3,7 @@
 import { UNITS } from '../data/units';
 import { BUILDINGS } from '../data/buildings';
 import type { Building, City, Command, Ent, MatchState, Unit } from '../sim/types';
-import { enemies, allied } from '../sim/world';
+import { enemies, allied, shortfall } from '../sim/world';
 import { placementProblem } from '../sim/commands';
 import { CAPTURE } from '../data/cities';
 import type { PowerId } from '../data/powers';
@@ -44,7 +44,7 @@ export class Controller {
   /** placement ghost validity, for the HUD */
   placeWhy: string | null = null;
 
-  constructor(private session: Session, private cam: Camera, private input: Input, private fog: Fog) {}
+  constructor(private session: Session, private cam: Camera, private input: Input, readonly fog: Fog) {}
 
   get s(): MatchState {
     return this.session.state;
@@ -370,7 +370,7 @@ export class Controller {
       for (let y = ty; y < ty + d.h && !why; y++) for (let x = tx; x < tx + d.w; x++) if (!this.fog.isExplored(x, y)) { why = 'unexplored ground'; break; }
     }
     const p = this.s.players[this.me];
-    if (!why && (p.cash < d.cost.cash || p.oil < d.cost.oil)) why = 'not enough resources';
+    if (!why) why = shortfall(p, d.cost);
     this.placeWhy = why;
   }
 

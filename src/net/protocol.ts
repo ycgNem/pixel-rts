@@ -10,7 +10,8 @@ import { BUILDINGS } from '../data/buildings';
 import type { Building, City, Command, Crate, Effect, MatchSetup, MatchState, Order, Player, ProdItem, Shot, SimEvent, Unit, Weather } from '../sim/types';
 
 // 8: setups can carry an Auto time limit (-1) and a Random AI style; sub armor and depth charges
-export const PROTOCOL_VERSION = 8;
+// 9: bigger maps with a river and bridges (a new terrain id): the same setup builds another map
+export const PROTOCOL_VERSION = 9;
 /** the host sends a snapshot every this many ticks (20 Hz / 2 = 10 per second) */
 export const SNAP_EVERY = 2;
 

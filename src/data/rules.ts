@@ -2,7 +2,8 @@
 
 export const START = {
   cash: 1000,
-  oil: 200,
+  /** enough for a first tank: more takes a Derrick */
+  oil: 100,
   units: [['builder', 2], ['rifleman', 4]] as [string, number][],
 };
 
@@ -30,13 +31,22 @@ export const PRODUCTION = {
   exitSpread: 5,
   /** sell a finished building for this fraction of its cost */
   sellRefund: 0.5,
+  /**
+   * Busy crews: every `autoEvery` ticks an idle Builder (no orders, not holding) of a human player
+   * walks to the nearest unfinished building within `autoRadius` tiles that has the fewest
+   * Builders on it, so every project gets one Builder before any gets a second.
+   */
+  autoEvery: 10,
+  autoRadius: 60,
 };
 
 /**
  * How far apart units keep. Infantry keep `infantry` times their touching distance from other
  * infantry, so squads read as squads instead of one blob; `maxStep` caps the push per tick (tiles).
+ * A unit gives up a move after 6 s without getting closer along its path; while it is pressed
+ * against friendly units on the move (queueing for a bridge), a tick counts only `queuePatience`.
  */
-export const SEPARATION = { infantry: 1.3, maxStep: 0.08 };
+export const SEPARATION = { infantry: 1.3, maxStep: 0.08, queuePatience: 0.2 };
 
 export const COMBAT = {
   /** how far an idle unit chases before returning (tiles) */
@@ -52,7 +62,7 @@ export const COMBAT = {
   burnDps: 15,
 };
 
-export const MAP_SIZES = { small: 128, medium: 192, large: 256 } as const;
+export const MAP_SIZES = { small: 144, medium: 224, large: 288 } as const;
 export type MapSize = keyof typeof MAP_SIZES;
 export type MapType = 'pangaea' | 'continents' | 'islands' | 'lakes';
 
@@ -90,6 +100,14 @@ export const MAPGEN = {
   } as Partial<Record<MapType, { channel: number; home: number; shift: number; middle: number }>>,
   /** how far from a start its two home cities sit (tiles); `near` on the separated maps */
   homeCity: { far: 17, near: 13 },
+  /**
+   * A river across the land-war maps, crossed by two bridges. It runs from the map edge to the
+   * middle and out again, each half along the gap between two neighbouring starts, so it splits
+   * the players into two sides (as evenly as their number allows). `width` tiles of water,
+   * wandering up to `meander` tiles; each bridge is `bridgeWidth` tiles wide, `bridgeAt` × the map
+   * size from the middle, one on each half (the same distance, so neither side is favoured).
+   */
+  river: { on: ['pangaea', 'lakes'] as MapType[], width: 3, meander: 9, bridgeWidth: 3, bridgeAt: 0.2 },
 };
 
 /**

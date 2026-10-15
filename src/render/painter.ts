@@ -107,6 +107,7 @@ export class Painter {
     for (const c of map.cities) keep(c.x + 0.5, c.y + 0.5, 2.6);
     for (const d of map.deposits) keep(d.x + 1, d.y + 1, 1.6);
     for (const st of map.starts) keep(st.x, st.y, 4.5);
+    for (const b of map.bridges ?? []) for (const t of [0, 0.25, 0.5, 0.75, 1]) keep(b.x0 + (b.x1 - b.x0) * t, b.y0 + (b.y1 - b.y0) * t, b.w / 2 + 1.5);
     this.cityDist = new Float32Array(n).fill(99);
     for (const c of map.cities)
       for (let y = Math.max(0, c.y - 9); y <= Math.min(h - 1, c.y + 9); y++)
@@ -370,6 +371,18 @@ export class Painter {
         if (cls[p] !== G.MOUNTAIN && cls[p - S] === G.MOUNTAIN && cls[p] >= G.SAND && (x + y) % 2 === 0) col[p] = cls[p] === G.SAND ? C.dust : C.fern;
       }
 
+    // ---- bridges: a plank deck between stone parapets, its stone face and shadow on the water
+    const deck = this.bridges(ox, oy, S, H, cls, col);
+    if (deck) {
+      // no waves or glints over the deck
+      const keepS: number[] = [], keepK: number[] = [];
+      shoreN.forEach((p, i) => { if (!deck[p]) { keepS.push(p); keepK.push(shoreK[i]); } });
+      shoreN.length = 0; shoreN.push(...keepS);
+      shoreK.length = 0; shoreK.push(...keepK);
+      const g2 = glints.filter((p) => !deck[p]);
+      glints.length = 0; glints.push(...g2);
+    }
+
     // ---- to RGBA
     const img = new ImageData(S, S);
     const d = img.data;
@@ -381,6 +394,79 @@ export class Painter {
       img, shore: Uint32Array.from(shoreN), shoreK: Uint8Array.from(shoreK), glints: Uint32Array.from(glints),
       sprites: this.scatter(ox, oy, S),
     };
+  }
+
+  /**
+   * Paint the river bridges over this chunk. Returns a mask of the pixels they cover (deck, face
+   * and shadow), or null when no bridge reaches the chunk.
+   */
+  private bridges(ox: number, oy: number, S: number, H: number, cls: Uint8Array, col: Uint8Array): Uint8Array | null {
+    const list = this.map.bridges;
+    if (!list?.length) return null;
+    let mask: Uint8Array | null = null;
+    const FACE = 6, SHADOW = 4, WALL = 5, RAMP = 14;
+    for (const b of list) {
+      const x0 = b.x0 * TILE, y0 = b.y0 * TILE, x1 = b.x1 * TILE, y1 = b.y1 * TILE;
+      const len = Math.hypot(x1 - x0, y1 - y0), half = (b.w * TILE) / 2;
+      const ux = (x1 - x0) / len, uy = (y1 - y0) / len;
+      const pad = half + FACE + SHADOW + 2;
+      if (Math.max(x0, x1) + pad < ox || Math.min(x0, x1) - pad > ox + S || Math.max(y0, y1) + pad < oy || Math.min(y0, y1) - pad > oy + H) continue;
+      // along (px from the first end) and across (px from the center line) at a world pixel
+      const on = (wx: number, wy: number): [number, number] | null => {
+        const px = wx + 0.5 - x0, py = wy + 0.5 - y0;
+        const a = px * ux + py * uy, c = px * -uy + py * ux;
+        return a >= 0 && a <= len && Math.abs(c) <= half ? [a, c] : null;
+      };
+      mask ??= new Uint8Array(S * H);
+      for (let y = 0; y < H; y++)
+        for (let x = 0; x < S; x++) {
+          const wx = ox + x, wy = oy + y, p = y * S + x;
+          const hit = on(wx, wy);
+          if (hit) {
+            const [a, c] = hit;
+            const edge = half - Math.abs(c), end = Math.min(a, len - a);
+            // the ends run out onto the banks and fade into the road there
+            if (end < RAMP && bayer(wx, wy) > end / RAMP) continue;
+            const walled = end > RAMP + 2;
+            let k: number;
+            if (walled && edge < 1) k = C.ink;
+            else if (walled && edge < WALL) {
+              // stone parapets: blocks with mortar joints, lit on the outer course
+              const course = edge < 3 ? 0 : 1, joint = (a + course * 5) % 10 < 1;
+              k = joint ? C.slate : course === 0 ? C.pebble : C.stone;
+            } else if (walled && edge < WALL + 1) k = C.ink;
+            else {
+              // cobbles: rows across the deck, each stone lit top-left, joints between them
+              const row = Math.floor(a / 5), ra = a - row * 5;
+              const cc = c + half + (row % 2) * 4, col8 = Math.floor(cc / 8), rc = cc - col8 * 8;
+              const h = hash2(row, col8, 647);
+              k = ra < 1 || rc < 1 ? C.slate : ra < 2 || rc < 2 ? C.pebble : h < 0.2 ? C.slate : h > 0.9 ? C.pebble : C.stone;
+              // worn smooth where the wheels run
+              if (k !== C.slate && Math.abs(Math.abs(c) - half * 0.4) < 2.5 && hash2(wx, wy, 649) < 0.5) k = C.stone;
+            }
+            col[p] = k;
+            cls[p] = G.ROAD;
+            mask[p] = 1;
+            continue;
+          }
+          // below the deck (¾ view): its stone face, then its shadow on the water (light from the north-west)
+          if (cls[p] > G.WATER) continue;
+          for (let k = 1; k <= FACE + SHADOW; k++) {
+            if (on(wx, wy - k)) {
+              if (k <= FACE) col[p] = k <= 3 ? C.slate : k < FACE ? C.plum : C.ink;
+              else col[p] = bayer(wx, wy) < 0.6 ? C.navy : C.dusk;
+              mask[p] = 1;
+              break;
+            }
+            if (k <= SHADOW + 2 && on(wx - k, wy - Math.floor(k / 2))) {
+              col[p] = k === 1 ? C.ink : bayer(wx, wy) < 0.7 ? C.navy : C.dusk;
+              mask[p] = 1;
+              break;
+            }
+          }
+        }
+    }
+    return mask;
   }
 
   /**
