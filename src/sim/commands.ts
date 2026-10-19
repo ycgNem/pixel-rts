@@ -8,7 +8,7 @@ import { SPECS } from '../data/cities';
 import { DOCTRINES } from '../data/techs';
 import { PRODUCTION } from '../data/rules';
 import type { Building, Command, MatchState, SimEvent, Unit } from './types';
-import { allied, buildingCap, buildingCount, buildingMaxHp, enemies, insurgent, missingBuilding, shortfall, unitCost, unitMaxHp } from './world';
+import { allied, buildingCap, buildingCount, buildingMaxHp, enemies, insurgent, missingBuilding, shortfall, unitCost, unitMaxHp, unitSellValue } from './world';
 import { dropBlocked, dropPartisans } from './insurgency';
 import { bidBlocked, placeBid } from './contracts';
 import { placeBuilding, removeEnt } from './lifecycle';
@@ -146,6 +146,16 @@ export function applyCommand(s: MatchState, c: Command, ev: SimEvent[]) {
       const d = BUILDINGS[b.kind];
       pl.cash += d.cost.cash * PRODUCTION.sellRefund;
       b.hp = 0;
+      break;
+    }
+    case 'sellUnits': {
+      for (const u of mine(c.ids)) {
+        const v = unitSellValue(s, u);
+        if (!v) continue;
+        pl.cash += v.cash;
+        pl.oil += v.oil;
+        removeEnt(s, u, ev, false);
+      }
       break;
     }
     case 'trade': {

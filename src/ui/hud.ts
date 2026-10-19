@@ -11,7 +11,7 @@ import { tradeBlocked, tradeQuote } from '../sim/exchange';
 import { powerCost, supplyDropCash } from '../sim/powers';
 import type { Building, City, MatchState, SimEvent, Unit } from '../sim/types';
 import { TICK_RATE } from '../sim/types';
-import { unitMaxHp, buildingCap, buildingCount, buildingMaxHp, unitCost, hqOf, allied, exileCapital, insurgent, missingBuilding } from '../sim/world';
+import { unitMaxHp, buildingCap, buildingCount, buildingMaxHp, unitCost, unitSellValue, hqOf, allied, exileCapital, insurgent, missingBuilding } from '../sim/world';
 import { charges, chestTroops, dropBlocked, squadProgress } from '../sim/insurgency';
 import { bidBlocked, jobReward, minBid, supplyFloor, topBid } from '../sim/contracts';
 import type { ContractKind } from '../sim/types';
@@ -881,6 +881,19 @@ Mines earn cash for the rest of the match.`;
         }
       }
       if (has((u) => u.cargo.length > 0)) b('Unld', 'KeyU', 'Unload\nClick a shore to land the troops.', ctl.mode.m === 'unload', () => (ctl.mode = { m: 'unload' }));
+      // sell (disband) the selection: in the bottom-right corner, like a building's Sell
+      const sale = units.map((u) => unitSellValue(s, u)).filter((v) => !!v);
+      const cash = sale.reduce((a, v) => a + v.cash, 0), oil = sale.reduce((a, v) => a + v.oil, 0);
+      const [sx, sy] = slot(11);
+      const armedSell = performance.now() - this.sellArmed < 2500;
+      this.marks['cmd:Sell'] = { x: sx, y: sy, w: BTN_W, h: BTN_H };
+      if (ui.button(sx, sy, BTN_W, BTN_H, {
+        label: armedSell ? 'Sure?' : 'Sell', hotkey: 'Delete', disabled: !sale.length, color: armedSell ? COL.red : undefined,
+        tip: `Sell ${sale.length > 1 ? `${sale.length} units` : 'unit'} for $${cash}${oil ? ` + ${oil} oil` : ''}\nRefunds ${PRODUCTION.unitSellRefund * 100}% of the cost, less for damaged units. Click twice.${sale.length < units.length ? '\nMerchant ships and loaded transports can\'t be sold.' : ''}`,
+      })) {
+        if (armedSell) { ctl.send({ t: 'sellUnits', p: this.me, ids }); this.sellArmed = 0; }
+        else this.sellArmed = performance.now();
+      }
       return;
     }
 

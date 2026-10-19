@@ -178,12 +178,13 @@ function alertHit(s: MatchState, target: Ent, attacker: Ent | undefined, ev: Sim
 }
 
 /** Remove a dead entity (and anything it carried). */
-export function removeEnt(s: MatchState, e: Ent, ev: SimEvent[]) {
+/** `lost` = false for a unit its owner sold: it doesn't count as lost in the stats */
+export function removeEnt(s: MatchState, e: Ent, ev: SimEvent[], lost = true) {
   delete s.ents[e.id];
   ev.push({ e: 'die', id: e.id, kind: e.kind, owner: e.owner, x: e.x, y: e.y, b: e.t === 'b', dir: e.t === 'u' ? e.dir : 0 });
   if (e.owner >= 0) {
     const st = s.players[e.owner].stats;
-    if (e.t === 'u') st.unitsLost++;
+    if (e.t === 'u' && lost) st.unitsLost++;
     // an ace lost without a killing blow (sunk in its transport, disbanded): no bounty
     if (e.t === 'u' && isAce(s, e)) aceDown(s, e, -1, ev);
   }

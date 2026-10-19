@@ -13,7 +13,7 @@ export const SUPPLY = { max: 200 };
  * Building cap: a player may own at most `base` buildings plus `perCity` for each city they hold
  * (the HQ doesn't count; unfinished buildings do), so defenses can't be spammed without growing.
  */
-export const BUILD_CAP = { base: 20, perCity: 3 };
+export const BUILD_CAP = { base: 21, perCity: 4 };
 
 export const PRODUCTION = {
   queueMax: 5,
@@ -37,6 +37,8 @@ export const PRODUCTION = {
   exitSpread: 5,
   /** sell a finished building for this fraction of its cost */
   sellRefund: 0.5,
+  /** sell (disband) a unit for this fraction of its cash and oil cost, times its share of full HP */
+  unitSellRefund: 0.5,
   /**
    * Busy crews: every `autoEvery` ticks an idle Builder (no orders, not holding) of a human player
    * walks to the nearest unfinished building within `autoRadius` tiles that has the fewest

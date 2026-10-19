@@ -35,6 +35,7 @@ export function validCommand(c: unknown): c is Command {
       return ids(o.ids) && num(o.target) && optBool(o.q);
     case 'stop':
     case 'hold':
+    case 'sellUnits':
       return ids(o.ids);
     case 'build':
       return ids(o.ids) && own(BUILDINGS, o.kind) && num(o.tx) && num(o.ty) && optBool(o.q);

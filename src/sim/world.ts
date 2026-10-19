@@ -2,7 +2,7 @@
 import { UNITS, type UnitDef } from '../data/units';
 import { BUILDINGS, type BuildingDef } from '../data/buildings';
 import { VETERANCY } from '../data/damage';
-import { ACES, BUILD_CAP, INSURGENCY } from '../data/rules';
+import { ACES, BUILD_CAP, INSURGENCY, PRODUCTION } from '../data/rules';
 import type { Building, City, Ent, MatchState, Player, Unit } from './types';
 import { TICK_RATE } from './types';
 import { modMul } from './mods';
@@ -160,4 +160,14 @@ export function unitCost(s: MatchState, p: number, kind: string): { cash: number
   let m = modMul(pl, 'unitCost');
   if (d.cls === 'aircraft') m *= modMul(pl, 'aircraftCost');
   return { cash: Math.round(d.cost.cash * m), oil: Math.round(d.cost.oil * m) };
+}
+
+/**
+ * What selling unit `u` pays back (PRODUCTION.unitSellRefund of its cost, times its share of full
+ * HP), or null when it can't be sold: units nobody trains (merchant ships) and loaded transports.
+ */
+export function unitSellValue(s: MatchState, u: Unit): { cash: number; oil: number } | null {
+  if (!UNITS[u.kind].at.length || u.cargo.length) return null;
+  const c = unitCost(s, u.owner, u.kind), f = PRODUCTION.unitSellRefund * Math.max(0, Math.min(1, u.hp / unitMaxHp(s, u)));
+  return { cash: Math.floor(c.cash * f), oil: Math.floor(c.oil * f) };
 }

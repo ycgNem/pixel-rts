@@ -332,6 +332,7 @@ export type Command =
   | { t: 'rally'; p: number; at: number; city?: boolean; x: number; y: number }
   | { t: 'cancelBuild'; p: number; id: number }
   | { t: 'sell'; p: number; id: number }
+  | { t: 'sellUnits'; p: number; ids: number[] }
   | { t: 'research'; p: number; tech: string }
   | { t: 'cancelResearch'; p: number; index: number }
   | { t: 'doctrine'; p: number; id: string }

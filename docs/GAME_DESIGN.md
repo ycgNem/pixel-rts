@@ -125,7 +125,7 @@ Everything borrowed gets a twist of our own.
 | **Oil** | Oil Derricks on oil wells | Vehicles, aircraft, ships, advanced buildings |
 | **Science** | HQ, cities, Research Labs | Research. It flows into the current tech automatically. |
 | **Supply** (a cap, not a stockpile) | HQ (20), cities (more per level), Logistics | Limits army size. Hard cap 200 per player. |
-| **Building cap** (a cap, not a stockpile) | 20, plus 3 for every city you hold | Limits how many buildings you own (the HQ doesn't count; unfinished ones do). Lose cities and you keep what you built, but can't add more until you're under the cap again. Stops spamming AA Guns and turrets without expanding. |
+| **Building cap** (a cap, not a stockpile) | 21, plus 4 for every city you hold | Limits how many buildings you own (the HQ doesn't count; unfinished ones do). Lose cities and you keep what you built, but can't add more until you're under the cap again (or sell some). Stops spamming AA Guns and turrets without expanding. |
 | **Command Points** | HQ (1/min), cities (more per level) | Command Powers (§10). Bank up to 10. |
 
 - **Extractors work on their own.** A Mine on an ore deposit produces cash forever; no workers
@@ -262,7 +262,7 @@ can't target that class.
 Dug-in infantry take 40% less damage. Units standing in smoke take half damage from range.
 
 **Unit orders:** move, attack, attack-move, stop, hold position, patrol, waypoints (shift), load
-and unload (transports), build and repair (Builders), abilities. Units fire automatically at
+and unload (transports), build and repair (Builders), abilities, **sell** (Delete, click twice: 50% of the cash and oil cost back, times the unit's share of full HP; not merchant ships or a loaded transport; a sold unit doesn't count as lost). Finished buildings sell for 50% of their cash cost the same way. Units fire automatically at
 enemies in range.
 
 ---
@@ -581,6 +581,7 @@ match clears the slot.
 | Minimap | Left click jumps the camera, right click gives an order there |
 | B | Build menu (with a Builder selected); every button has a hotkey |
 | O / L / J (HQ selected) | Exchange: buy oil / sell oil / fund research |
+| Delete (twice) | Sell the selected units or building (cancel a building under construction) |
 | Tab | Command Powers |
 | Space / Home | Jump to the latest alert / to the HQ |
 | F1 / F2 / F3 | Help / research / match stats |
