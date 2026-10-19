@@ -9,6 +9,12 @@ export const START = {
 
 export const SUPPLY = { max: 200 };
 
+/**
+ * Building cap: a player may own at most `base` buildings plus `perCity` for each city they hold
+ * (the HQ doesn't count; unfinished buildings do), so defenses can't be spammed without growing.
+ */
+export const BUILD_CAP = { base: 20, perCity: 3 };
+
 export const PRODUCTION = {
   queueMax: 5,
   /** refund when a queued item or an unfinished building is cancelled */

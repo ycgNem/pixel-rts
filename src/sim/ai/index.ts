@@ -19,7 +19,7 @@ import type { AiDifficulty, AiPersonality, Building, City, Command, Ent, MatchSt
 import { TICK_RATE } from '../types';
 import { placementProblem } from '../commands';
 import { nav, compOf, passable, nearestPassable, type Nav } from '../nav';
-import { unitCost, hqOf, enemies, unitMaxHp, buildingMaxHp, insurgent, missingBuilding } from '../world';
+import { unitCost, hqOf, enemies, unitMaxHp, buildingCap, buildingCount, buildingMaxHp, insurgent, missingBuilding } from '../world';
 import { charges, chestTroops, dropBlocked, squadProgress } from '../insurgency';
 import { trainsAt } from '../laststand';
 import { armyValue } from '../lifecycle';
@@ -401,9 +401,10 @@ class Brain implements Ai {
       }
     }
     if (!idle.length) return;
-    // something new
-    const kind = this.nextBuilding(s);
+    // something new (unless the building cap is reached)
     this.saving = 0;
+    if (buildingCount(s, this.player) >= buildingCap(s, this.player)) return;
+    const kind = this.nextBuilding(s);
     if (!kind) return;
     const d = BUILDINGS[kind];
     if (p.cash - this.spent < d.cost.cash || p.oil < d.cost.oil) { this.saving = d.cost.cash; return; }

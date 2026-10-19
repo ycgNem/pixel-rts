@@ -2,7 +2,7 @@
 import { UNITS, type UnitDef } from '../data/units';
 import { BUILDINGS, type BuildingDef } from '../data/buildings';
 import { VETERANCY } from '../data/damage';
-import { ACES, INSURGENCY } from '../data/rules';
+import { ACES, BUILD_CAP, INSURGENCY } from '../data/rules';
 import type { Building, City, Ent, MatchState, Player, Unit } from './types';
 import { TICK_RATE } from './types';
 import { modMul } from './mods';
@@ -36,6 +36,23 @@ export function missingBuilding(s: MatchState, p: number, kind: string): string 
     if (e.t === 'b' && e.owner === p && e.kind === need && e.built >= 1) return null;
   }
   return need;
+}
+
+/** Buildings player `p` owns toward the building cap: every one but the HQ, finished or not. */
+export function buildingCount(s: MatchState, p: number): number {
+  let n = 0;
+  for (const id in s.ents) {
+    const e = s.ents[id];
+    if (e.t === 'b' && e.owner === p && !BUILDINGS[e.kind].start) n++;
+  }
+  return n;
+}
+
+/** How many buildings player `p` may own (BUILD_CAP): a base plus some for every city held. */
+export function buildingCap(s: MatchState, p: number): number {
+  let cities = 0;
+  for (const c of s.cities) if (c.owner === p) cities++;
+  return BUILD_CAP.base + BUILD_CAP.perCity * cities;
 }
 
 export function ent(s: MatchState, id: number): Ent | undefined {

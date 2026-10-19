@@ -8,7 +8,7 @@ import { SPECS } from '../data/cities';
 import { DOCTRINES } from '../data/techs';
 import { PRODUCTION } from '../data/rules';
 import type { Building, Command, MatchState, SimEvent, Unit } from './types';
-import { allied, buildingMaxHp, enemies, insurgent, missingBuilding, shortfall, unitCost, unitMaxHp } from './world';
+import { allied, buildingCap, buildingCount, buildingMaxHp, enemies, insurgent, missingBuilding, shortfall, unitCost, unitMaxHp } from './world';
 import { dropBlocked, dropPartisans } from './insurgency';
 import { bidBlocked, placeBid } from './contracts';
 import { placeBuilding, removeEnt } from './lifecycle';
@@ -65,6 +65,8 @@ export function applyCommand(s: MatchState, c: Command, ev: SimEvent[]) {
       if (d.tech && !pl.techs.includes(d.tech)) return reject(`needs ${TECH_BY_ID.get(d.tech)?.name}`);
       const need = missingBuilding(s, c.p, c.kind);
       if (need) return reject(`build a ${BUILDINGS[need].name} first`);
+      const cap = buildingCap(s, c.p);
+      if (buildingCount(s, c.p) >= cap) return reject(`building limit reached (${cap}): hold more cities to build more`);
       const builders = mine(c.ids).filter((u) => UNITS[u.kind].builds);
       if (!builders.length) return reject('no builders');
       const why = placementProblem(s, c.p, c.kind, c.tx, c.ty);

@@ -125,6 +125,7 @@ Everything borrowed gets a twist of our own.
 | **Oil** | Oil Derricks on oil wells | Vehicles, aircraft, ships, advanced buildings |
 | **Science** | HQ, cities, Research Labs | Research. It flows into the current tech automatically. |
 | **Supply** (a cap, not a stockpile) | HQ (20), cities (more per level), Logistics | Limits army size. Hard cap 200 per player. |
+| **Building cap** (a cap, not a stockpile) | 20, plus 3 for every city you hold | Limits how many buildings you own (the HQ doesn't count; unfinished ones do). Lose cities and you keep what you built, but can't add more until you're under the cap again. Stops spamming AA Guns and turrets without expanding. |
 | **Command Points** | HQ (1/min), cities (more per level) | Command Powers (§10). Bank up to 10. |
 
 - **Extractors work on their own.** A Mine on an ore deposit produces cash forever; no workers

@@ -6,12 +6,12 @@ import { BUILDINGS } from '../data/buildings';
 import { CITY_LEVELS, SPECS, type SpecId } from '../data/cities';
 import { POWERS, COMMAND, type PowerId } from '../data/powers';
 import { ERAS, TECHS, DOCTRINES } from '../data/techs';
-import { ACES, COALITION, CONTRACTS, EXCHANGE, EXILE, INSURGENCY, LAST_STAND, PRODUCTION, RESISTANCE, SCRUB, VICTORY, type TradeId } from '../data/rules';
+import { ACES, BUILD_CAP, COALITION, CONTRACTS, EXCHANGE, EXILE, INSURGENCY, LAST_STAND, PRODUCTION, RESISTANCE, SCRUB, VICTORY, type TradeId } from '../data/rules';
 import { tradeBlocked, tradeQuote } from '../sim/exchange';
 import { powerCost, supplyDropCash } from '../sim/powers';
 import type { Building, City, MatchState, SimEvent, Unit } from '../sim/types';
 import { TICK_RATE } from '../sim/types';
-import { unitMaxHp, buildingMaxHp, unitCost, hqOf, allied, exileCapital, insurgent, missingBuilding } from '../sim/world';
+import { unitMaxHp, buildingCap, buildingCount, buildingMaxHp, unitCost, hqOf, allied, exileCapital, insurgent, missingBuilding } from '../sim/world';
 import { charges, chestTroops, dropBlocked, squadProgress } from '../sim/insurgency';
 import { bidBlocked, jobReward, minBid, supplyFloor, topBid } from '../sim/contracts';
 import type { ContractKind } from '../sim/types';
@@ -830,16 +830,18 @@ Mines earn cash for the rest of the match.`;
     }
 
     if (units.length && this.buildPage) {
+      const owned = buildingCount(s, this.me), capB = buildingCap(s, this.me), full = owned >= capB;
+      const capTxt = `\nBuildings ${owned}/${capB} (${BUILD_CAP.base} + ${BUILD_CAP.perCity} per city)${full ? '\nLimit reached: hold more cities to build more' : ''}`;
       BUILD_ORDER.forEach((kind, i) => {
         const d = BUILDINGS[kind];
         const need = missingBuilding(s, this.me, kind);
-        const locked = (d.tech && !p.techs.includes(d.tech)) || !!need;
+        const locked = (d.tech && !p.techs.includes(d.tech)) || !!need || full;
         const [bx, by] = slot(i);
         const costTxt = `${d.cost.cash}${d.cost.oil ? ` + ${d.cost.oil} oil` : ''}`;
         this.marks['build:' + kind] = { x: bx, y: by, w: BTN_W, h: BTN_H };
         if (ui.button(bx, by, BTN_W, BTN_H, {
           icon: sprite(`b:${kind}`, viewColor(s, this.me)), hotkey: 'Key' + d.hotkey, disabled: !!locked,
-          tip: `${d.name}  ${costTxt}\n${d.desc}${d.tech && !p.techs.includes(d.tech) ? `\nNeeds ${TECH_BY_ID.get(d.tech)?.name}` : ''}${need ? `\nBuild a ${BUILDINGS[need].name} first` : ''}\nBuild time ${d.buildTime}s`,
+          tip: `${d.name}  ${costTxt}\n${d.desc}${d.tech && !p.techs.includes(d.tech) ? `\nNeeds ${TECH_BY_ID.get(d.tech)?.name}` : ''}${need ? `\nBuild a ${BUILDINGS[need].name} first` : ''}\nBuild time ${d.buildTime}s${capTxt}`,
           badge: locked ? '' : `${d.cost.cash}`, badgeColor: p.cash < d.cost.cash ? COL.red : COL.white,
           oil: locked ? 0 : d.cost.oil, oilColor: p.oil < d.cost.oil ? COL.red : COL.oil,
         })) {

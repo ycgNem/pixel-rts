@@ -11,7 +11,7 @@ import { ACES, CONTRACTS, INSURGENCY, LAST_STAND } from '../data/rules';
 interface Tip { title: string; text: string }
 
 export const TIPS: Record<string, Tip> = {
-  city: { title: 'Cities', text: 'Cities pay cash, science, supply and Command Points, and grow over time. Their militia shoots intruders. At Town size you pick a specialty for each.' },
+  city: { title: 'Cities', text: 'Cities pay cash, science, supply and Command Points, raise your building cap, and grow over time. Their militia shoots intruders. At Town size you pick a specialty for each.' },
   resist: { title: 'Resistance', text: "A rival's city you take resists: partisans rise unless infantry of yours stay in it until the resistance ends." },
   homeFront: { title: 'Home Front', text: 'Land near your cities and HQ is your ground (dashed lines mark where it meets a rival\'s; the zoomed-out map tints it). Your units slowly heal on it, so fighting at home favours you.' },
   coalitionYou: { title: 'The world turns on you', text: 'You started a supremacy clock or a launch: every other team now deals you extra damage and gets Command Points. Hold on, or break off.' },
