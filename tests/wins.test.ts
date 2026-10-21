@@ -15,8 +15,8 @@ import { add, match, openSpot, run, setup, unitsOf } from './helpers';
 function rich(s: MatchState, p: number) {
   const pl = s.players[p];
   pl.techs = TECHS.map((t) => t.id);
-  pl.cash = 50000;
-  pl.oil = 10000;
+  pl.cash = 200000;
+  pl.oil = 20000;
 }
 
 /** A legal spot for `kind` near player p's start, searched in rings. */

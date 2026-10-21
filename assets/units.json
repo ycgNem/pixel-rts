@@ -253,6 +253,9 @@
     "flaktruck": {
       "object": "3f335c83-a3d5-4d7f-ac2d-e4c6fdd6918a"
     },
+    "megatank": {
+      "object": "a69afafe-4048-4c68-b162-6f0bfe6393ac"
+    },
     "fighter": {
       "object": "8a6ec3d4-6cc9-49e7-96dd-a80837c72ba8"
     },
@@ -261,6 +264,9 @@
     },
     "helicopter": {
       "object": "00ba4e4b-2d57-4597-98d4-5bfe88d8fdde"
+    },
+    "megaplane": {
+      "object": "ac8186cc-2dcd-428c-b552-e3345d7794d0"
     },
     "patrolboat": {
       "object": "84f4fce6-45c7-4cd7-a3d3-d9398e5a38f0"

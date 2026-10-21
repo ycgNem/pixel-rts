@@ -115,6 +115,8 @@ export function useAbility(s: MatchState, u: Unit, x: number, y: number, ev: Sim
       break;
     case 'barrage':
     case 'afterburner':
+    case 'steamroll':
+    case 'carpet':
       u.abUntil = s.tick + sec(def.duration);
       break;
   }

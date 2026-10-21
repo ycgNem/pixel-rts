@@ -6,14 +6,14 @@ import { BUILDINGS } from '../data/buildings';
 import { TERRAIN } from '../data/terrain';
 import { SPECS } from '../data/cities';
 import { DOCTRINES } from '../data/techs';
-import { PRODUCTION } from '../data/rules';
+import { PRODUCTION, WORK_ZONE } from '../data/rules';
 import type { Building, Command, MatchState, SimEvent, Unit } from './types';
-import { allied, buildingCap, buildingCount, buildingMaxHp, enemies, insurgent, missingBuilding, shortfall, unitCost, unitMaxHp, unitSellValue } from './world';
+import { allied, buildingCap, buildingCount, buildingMaxHp, enemies, insurgent, limitReached, missingBuilding, shortfall, unitCost, unitMaxHp, unitSellValue } from './world';
 import { dropBlocked, dropPartisans } from './insurgency';
 import { bidBlocked, placeBid } from './contracts';
 import { placeBuilding, removeEnt } from './lifecycle';
 import { give, orderMove } from './orders';
-import { techBlocked, newProdItem, crewCounts, TECH_BY_ID } from './economy';
+import { techBlocked, newProdItem, crewCounts, inZone, TECH_BY_ID } from './economy';
 import { cityTrains } from './cities';
 import { trainsAt } from './laststand';
 import { trade, tradeBlocked } from './exchange';
@@ -40,7 +40,7 @@ export function applyCommand(s: MatchState, c: Command, ev: SimEvent[]) {
   switch (c.t) {
     case 'move': {
       const us = mine(c.ids);
-      for (const u of us) u.dug = false;
+      for (const u of us) { u.dug = false; delete u.post; }
       orderMove(s, us, clampX(s, c.x), clampY(s, c.y), !!c.q, !!c.am);
       break;
     }
@@ -51,8 +51,24 @@ export function applyCommand(s: MatchState, c: Command, ev: SimEvent[]) {
       break;
     }
     case 'stop':
-      for (const u of mine(c.ids)) { u.order = null; u.queue = []; u.tgt = 0; u.gx = u.x; u.gy = u.y; u.hold = false; }
+      for (const u of mine(c.ids)) { u.order = null; u.queue = []; u.tgt = 0; u.gx = u.x; u.gy = u.y; u.hold = false; delete u.post; }
       break;
+    case 'zone': {
+      const builders = mine(c.ids).filter((u) => UNITS[u.kind].builds);
+      if (!builders.length) return reject('no builders');
+      if (c.r <= 0) { for (const u of builders) delete u.post; break; }
+      const x = clampX(s, c.x), y = clampY(s, c.y), r = Math.max(WORK_ZONE.min, Math.min(WORK_ZONE.max, c.r));
+      // spread the Builders around the edge, so a crew doesn't walk it in single file
+      builders.forEach((u, i) => (u.post = { x, y, r, leg: Math.floor((i * WORK_ZONE.points) / builders.length), wait: 0 }));
+      // a job outside the zone is dropped; one inside it goes on
+      const away = builders.filter((u) => {
+        const t = u.order?.o === 'build' ? s.ents[u.order.t] : undefined;
+        return !(t && inZone(u.post!, t));
+      });
+      for (const u of away) { u.order = null; u.queue = []; u.hold = false; }
+      orderMove(s, away.filter((u) => Math.hypot(u.x - x, u.y - y) > r), x, y, false, false);
+      break;
+    }
     case 'hold':
       for (const u of mine(c.ids)) { u.order = null; u.queue = []; u.hold = true; u.gx = u.x; u.gy = u.y; u.tgt = 0; }
       break;
@@ -109,6 +125,8 @@ export function applyCommand(s: MatchState, c: Command, ev: SimEvent[]) {
       const n = Math.max(1, Math.min(PRODUCTION.queueMax, c.n | 0));
       for (let i = 0; i < n; i++) {
         if (prod.length >= PRODUCTION.queueMax) break;
+        const full = limitReached(s, c.p, c.kind);
+        if (full) { if (i === 0) reject(full); break; }
         if (pl.cash < cost.cash || pl.oil < cost.oil) { if (i === 0) reject(shortfall(pl, cost)!); break; }
         pl.cash -= cost.cash;
         pl.oil -= cost.oil;
@@ -259,7 +277,7 @@ export function applyCommand(s: MatchState, c: Command, ev: SimEvent[]) {
 }
 
 /** the commands an insurgent may give */
-const INSURGENT_ORDERS = new Set<Command['t']>(['move', 'attack', 'stop', 'hold', 'patrol', 'ability', 'insurge', 'surrender']);
+const INSURGENT_ORDERS = new Set<Command['t']>(['move', 'attack', 'stop', 'hold', 'patrol', 'zone', 'ability', 'insurge', 'surrender']);
 
 function ownedBuilding(s: MatchState, p: number, id: number): Building | undefined {
   const b = s.ents[id];

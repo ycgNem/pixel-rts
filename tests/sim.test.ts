@@ -7,7 +7,7 @@ import { ERAS, TECH_ESCALATE } from '../src/data/techs';
 import { SUPPLY_DROP } from '../src/data/powers';
 import { placementProblem } from '../src/sim/commands';
 import { BUILDINGS } from '../src/data/buildings';
-import { START } from '../src/data/rules';
+import { EXCHANGE, START } from '../src/data/rules';
 import type { Building, Command } from '../src/sim/types';
 import { TICK_RATE } from '../src/sim/types';
 import { add, match, run, setup, unitsOf } from './helpers';
@@ -222,10 +222,12 @@ describe('untrusted commands', () => {
   it('the exchange trades cash for oil, and each trade costs more than the last', () => {
     const s = match();
     const p = s.players[0];
-    p.cash = 5000;
+    p.cash = 10000;
     const oil = p.oil;
     run(s, 0.05, [{ t: 'trade', p: 0, trade: 'buyOil' }]);
-    const first = 5000 - p.cash;
+    const first = 10000 - p.cash;
+    // oil is dear: the first 100 costs the full base price (a tick of income comes in too)
+    expect(first).toBeGreaterThan(EXCHANGE.trades.buyOil.pay - 1);
     expect(p.oil).toBeGreaterThan(oil);
     const before = p.cash;
     run(s, 0.05, [{ t: 'trade', p: 0, trade: 'buyOil' }]);

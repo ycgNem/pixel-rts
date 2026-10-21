@@ -29,6 +29,8 @@ export function validCommand(c: unknown): c is Command {
     case 'patrol':
     case 'unload':
       return ids(o.ids) && num(o.x) && num(o.y) && optBool(o.q) && optBool(o.am);
+    case 'zone':
+      return ids(o.ids) && num(o.x) && num(o.y) && num(o.r);
     case 'attack':
     case 'assist':
     case 'load':

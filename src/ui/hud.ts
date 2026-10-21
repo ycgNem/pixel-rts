@@ -11,7 +11,7 @@ import { tradeBlocked, tradeQuote } from '../sim/exchange';
 import { powerCost, supplyDropCash } from '../sim/powers';
 import type { Building, City, MatchState, SimEvent, Unit } from '../sim/types';
 import { TICK_RATE } from '../sim/types';
-import { unitMaxHp, buildingCap, buildingCount, buildingMaxHp, unitCost, unitSellValue, hqOf, allied, exileCapital, insurgent, missingBuilding } from '../sim/world';
+import { unitMaxHp, buildingCap, buildingCount, buildingMaxHp, unitCost, unitCount, unitSellValue, hqOf, allied, exileCapital, insurgent, limitReached, missingBuilding } from '../sim/world';
 import { charges, chestTroops, dropBlocked, squadProgress } from '../sim/insurgency';
 import { bidBlocked, jobReward, minBid, supplyFloor, topBid } from '../sim/contracts';
 import type { ContractKind } from '../sim/types';
@@ -34,7 +34,7 @@ import { Tutorial, type Rect } from './tutorial';
 import { Chronicle } from './chronicle';
 import { UI, COL } from './ui';
 import { audio } from '../engine/audio';
-import { ICON, textWidth, ellipsize, wrapText, LINE_H } from './font';
+import { ICON, drawText, textWidth, ellipsize, wrapText, LINE_H } from './font';
 import { matchupText, plural, WEAPON_NAMES } from './counters';
 import { FieldManual } from './manual';
 import { FieldGuide } from './guide';
@@ -349,6 +349,7 @@ export class Hud {
       this.buildPage = false;
     }
     this.topBar(now);
+    this.launchBanner(now);
     // the end screen tells the outcome; the tracker would only crowd it
     if (!s.over || this.hideEnd) this.victoryTracker(now);
     this.minimapBox(now);
@@ -455,7 +456,7 @@ Mines earn cash for the rest of the match.`;
     btn('?', 'F1', 'How to play', this.panel === 'help', () => this.toggle('help'));
     btn('Stats', 'F3', 'Match stats', this.panel === 'stats', () => this.toggle('stats'));
     btn('Research', 'F2', 'Tech tree', this.panel === 'research', () => this.toggle('research'));
-    const idle = Object.values(s.ents).filter((e) => e.t === 'u' && e.owner === this.me && UNITS[e.kind].builds && !e.order && !e.inside).length;
+    const idle = Object.values(s.ents).filter((e) => e.t === 'u' && e.owner === this.me && UNITS[e.kind].builds && !e.order && !e.inside && !e.post).length;
     if (idle) btn(`Idle ${idle}`, 'Period', 'Select an idle Builder', false, () => { this.d.input.pressed.add('Period'); });
     const dark = darkness(s);
     const tod = !s.setup.weather ? '' : dark > 0.6 ? 'Night' : dark > 0 ? 'Dusk' : 'Day';
@@ -466,6 +467,46 @@ Mines earn cash for the rest of the match.`;
     if (limit > 0) {
       const left = Math.max(0, limit * TICK_RATE - s.tick);
       ui.textRight(`Ends in ${clock(left)}`, rx - 4, TOP_H + 3, COL.dim);
+    }
+  }
+
+  /** the last whole second the launch banner beeped at */
+  private launchBeep = -1;
+
+  /**
+   * A rocket is counting down: a big clock under the top bar for everyone, green for your side's
+   * and red for a rival's, blinking and beeping near the end. Click it to look at the pad.
+   */
+  private launchBanner(now: number) {
+    const ui = this.ui, s = this.s, l = s.launch;
+    const site = l ? s.ents[l.id] : undefined;
+    if (!l || !site || s.over) return;
+    const ours = allied(s, site.owner, this.me);
+    const left = Math.max(0, l.done - s.tick), secs = Math.ceil(left / TICK_RATE);
+    const total = VICTORY.launchTime * TICK_RATE;
+    const late = secs <= 30, blink = late && Math.floor(now / 250) % 2 === 0;
+    const col = ours ? COL.green : COL.red;
+    const w = 200, h = 52, x = Math.round(ui.w / 2 - w / 2), y = TOP_H + 3;
+    ui.panel(x, y, w, h);
+    const edge = blink ? COL.white : col;
+    ui.rect(x, y, w, 1, edge); ui.rect(x, y + h - 1, w, 1, edge); ui.rect(x, y, 1, h, edge); ui.rect(x + w - 1, y, 1, h, edge);
+    const who = ours ? (site.owner === this.me ? 'YOUR ROCKET LAUNCHES IN' : `${s.players[site.owner].name.toUpperCase()}'S ROCKET (ALLY) IN`) : `${s.players[site.owner].name.toUpperCase()}'S ROCKET LAUNCHES IN`;
+    ui.textCenter(ellipsize(who, w - 8), x + w / 2, y + 3, col);
+    // the clock, three times the size of the rest
+    const t = clock(left), k = ui.s * 3;
+    drawText(ui.ctx, t, Math.round((x + w / 2) * ui.s - (textWidth(t) * k) / 2), Math.round((y + 12) * ui.s), blink ? COL.white : col, k, COL.shadow);
+    ui.bar(x + 6, y + 36, w - 12, 3, Math.max(0, Math.min(1, 1 - left / total)), col);
+    ui.textCenter(ours ? 'Guard it: enemy infantry at the pad delay it' : 'Destroy it, or put infantry at the pad', x + w / 2, y + 41, COL.dim);
+    if (ui.hover(x, y, w, h)) {
+      ui.setTip('Click to look at the Launch Site', x + w / 2, y + h);
+      if (this.d.input.mouse.pressed[0]) { this.d.input.consumeMouse(0); this.d.cam.centerOn(site.x, site.y); }
+    }
+    ui.block(x, y, w, h);
+    // beeps: at a minute and half a minute, then every second of the last ten
+    if (secs !== this.launchBeep) {
+      if (secs === 60 || secs === 30) audio.sfx('alert', 0.7);
+      else if (secs <= 10 && secs > 0) audio.sfx('ready', 0.8);
+      this.launchBeep = secs;
     }
   }
 
@@ -842,7 +883,7 @@ Mines earn cash for the rest of the match.`;
         if (ui.button(bx, by, BTN_W, BTN_H, {
           icon: sprite(`b:${kind}`, viewColor(s, this.me)), hotkey: 'Key' + d.hotkey, disabled: !!locked,
           tip: `${d.name}  ${costTxt}\n${d.desc}${d.tech && !p.techs.includes(d.tech) ? `\nNeeds ${TECH_BY_ID.get(d.tech)?.name}` : ''}${need ? `\nBuild a ${BUILDINGS[need].name} first` : ''}\nBuild time ${d.buildTime}s${capTxt}`,
-          badge: locked ? '' : `${d.cost.cash}`, badgeColor: p.cash < d.cost.cash ? COL.red : COL.white,
+          badge: locked ? '' : short(d.cost.cash), badgeColor: p.cash < d.cost.cash ? COL.red : COL.white,
           oil: locked ? 0 : d.cost.oil, oilColor: p.oil < d.cost.oil ? COL.red : COL.oil,
         })) {
           ctl.mode = { m: 'place', kind };
@@ -866,6 +907,10 @@ Mines earn cash for the rest of the match.`;
       b('Hold', 'KeyH', 'Hold position\nStay put and fire at what comes in range.', units.every((u) => u.hold), () => ctl.send({ t: 'hold', p: this.me, ids }), !armed);
       b('Patrl', 'KeyP', 'Patrol\nWalk back and forth, fighting. Click the map.', ctl.mode.m === 'patrol', () => (ctl.mode = { m: 'patrol' }), !armed);
       if (has((u) => !!UNITS[u.kind].builds)) b('Build', 'KeyB', 'Build\nOpen the building menu.', false, () => (this.buildPage = true));
+      if (has((u) => !!UNITS[u.kind].builds)) {
+        const posted = units.filter((u) => u.post).length;
+        b('Zone', 'KeyG', `Work zone\nClick a spot (or drag out its size) to give the Builders an area: they build and repair only your buildings there, and walk its edge when there's nothing to do.\nMove or Stop frees them.${posted ? `\n${posted} selected ${posted > 1 ? 'have' : 'has'} a zone now.` : ''}`, ctl.mode.m === 'zone', () => (ctl.mode = { m: 'zone' }));
+      }
       const abKinds = [...new Set(units.map((u) => UNITS[u.kind].ability).filter(Boolean))] as (keyof typeof ABILITIES)[];
       // a mixed selection gets a second ability button on F, so no two buttons share a key
       for (const [n, ab] of abKinds.slice(0, 2).entries()) {
@@ -888,8 +933,8 @@ Mines earn cash for the rest of the match.`;
       const armedSell = performance.now() - this.sellArmed < 2500;
       this.marks['cmd:Sell'] = { x: sx, y: sy, w: BTN_W, h: BTN_H };
       if (ui.button(sx, sy, BTN_W, BTN_H, {
-        label: armedSell ? 'Sure?' : 'Sell', hotkey: 'Delete', disabled: !sale.length, color: armedSell ? COL.red : undefined,
-        tip: `Sell ${sale.length > 1 ? `${sale.length} units` : 'unit'} for $${cash}${oil ? ` + ${oil} oil` : ''}\nRefunds ${PRODUCTION.unitSellRefund * 100}% of the cost, less for damaged units. Click twice.${sale.length < units.length ? '\nMerchant ships and loaded transports can\'t be sold.' : ''}`,
+        label: armedSell ? 'Sure?' : 'Sell', hotkey: 'KeyZ', altKeys: SELL_KEYS, disabled: !sale.length, color: armedSell ? COL.red : undefined,
+        tip: `Sell ${sale.length > 1 ? `${sale.length} units` : 'unit'} for $${cash}${oil ? ` + ${oil} oil` : ''}\nRefunds ${PRODUCTION.unitSellRefund * 100}% of the cost, less for damaged units.\nClick twice, or press Z twice (Delete works too).${sale.length < units.length ? '\nMerchant ships and loaded transports can\'t be sold.' : ''}`,
       })) {
         if (armedSell) { ctl.send({ t: 'sellUnits', p: this.me, ids }); this.sellArmed = 0; }
         else this.sellArmed = performance.now();
@@ -903,7 +948,7 @@ Mines earn cash for the rest of the match.`;
       let i = 0;
       if (b.built < 1) {
         const [bx, by] = slot(11);
-        if (ui.button(bx, by, BTN_W, BTN_H, { label: 'Cancel', hotkey: 'Delete', tip: `Cancel construction\nRefunds ${PRODUCTION.buildCancelRefund * 100}%` })) ctl.send({ t: 'cancelBuild', p: this.me, id: b.id });
+        if (ui.button(bx, by, BTN_W, BTN_H, { label: 'Cancel', hotkey: 'KeyZ', altKeys: SELL_KEYS, tip: `Cancel construction\nRefunds ${PRODUCTION.buildCancelRefund * 100}%` })) ctl.send({ t: 'cancelBuild', p: this.me, id: b.id });
         return;
       }
       const sameKind = bs.filter((o) => o.kind === b.kind && o.built >= 1);
@@ -923,11 +968,15 @@ Mines earn cash for the rest of the match.`;
         const [bx, by] = slot(8);
         if (ui.button(bx, by, BTN_W, BTN_H, { label: 'Rally', hotkey: 'KeyY', tip: 'Set rally point\nNew units go here. Or right-click the map.', active: ctl.mode.m === 'rally' })) ctl.mode = { m: 'rally' };
       }
-      if (b.kind !== 'hq') {
+      // sell every selected finished building (never the HQ)
+      const sale = bs.filter((o) => o.kind !== 'hq' && o.built >= 1);
+      if (sale.length) {
         const [bx, by] = slot(11);
         const armed = performance.now() - this.sellArmed < 2500;
-        if (ui.button(bx, by, BTN_W, BTN_H, { label: armed ? 'Sure?' : 'Sell', hotkey: 'Delete', tip: `Sell ${d.name}\nRefunds ${PRODUCTION.sellRefund * 100}% of the cash cost. Click twice.`, color: armed ? COL.red : undefined })) {
-          if (armed) { ctl.send({ t: 'sell', p: this.me, id: b.id }); this.sellArmed = 0; }
+        const refund = sale.reduce((a, o) => a + Math.floor(BUILDINGS[o.kind].cost.cash * PRODUCTION.sellRefund), 0);
+        const what = sale.length > 1 ? `${sale.length} buildings` : d.name;
+        if (ui.button(bx, by, BTN_W, BTN_H, { label: armed ? 'Sure?' : 'Sell', hotkey: 'KeyZ', altKeys: SELL_KEYS, tip: `Sell ${what} for $${refund}\nRefunds ${PRODUCTION.sellRefund * 100}% of the cash cost.\nClick twice, or press Z twice (Delete works too).`, color: armed ? COL.red : undefined })) {
+          if (armed) { for (const o of sale) ctl.send({ t: 'sell', p: this.me, id: o.id }); this.sellArmed = 0; }
           else this.sellArmed = performance.now();
         }
       }
@@ -1010,11 +1059,13 @@ Mines earn cash for the rest of the match.`;
     const d = UNITS[kind];
     const cost = unitCost(s, this.me, kind);
     const locked = d.tech && !p.techs.includes(d.tech);
+    const full = !locked && !!limitReached(s, this.me, kind);
     const costTxt = `${Math.round(cost.cash)}${cost.oil ? ` + ${Math.round(cost.oil)} oil` : ''}`;
+    const limTxt = d.limit ? `\nAt most ${d.limit} at a time: you have ${unitCount(s, this.me, kind)} (counting ones in training).` : '';
     this.marks['train:' + kind] = { x: bx, y: by, w: BTN_W, h: BTN_H };
     if (ui.button(bx, by, BTN_W, BTN_H, {
-      icon: sprite(`u:${kind}:2`, viewColor(s, this.me)), hotkey: 'Key' + d.hotkey, disabled: !!locked,
-      tip: `${d.name}  ${costTxt}  ${ICON.supply}${d.supply}\n${d.desc}\n${matchupText(kind).join('\n')}${locked ? `\nNeeds ${TECH_BY_ID.get(d.tech!)?.name}` : ''}\nShift: queue 5`,
+      icon: sprite(`u:${kind}:2`, viewColor(s, this.me)), hotkey: 'Key' + d.hotkey, disabled: !!locked || full,
+      tip: `${d.name}  ${costTxt}  ${ICON.supply}${d.supply}\n${d.desc}\n${matchupText(kind).join('\n')}${locked ? `\nNeeds ${TECH_BY_ID.get(d.tech!)?.name}` : ''}${limTxt}\nShift: queue 5`,
       badge: locked ? '' : `${Math.round(cost.cash)}`, badgeColor: p.cash < cost.cash ? COL.red : COL.white,
       oil: locked ? 0 : Math.round(cost.oil), oilColor: p.oil < cost.oil ? COL.red : COL.oil,
     })) train(this.d.input.shift ? 5 : 1);
@@ -1486,7 +1537,11 @@ const cy = (y: number) => y + 11;
 const UNITS_AT: Record<string, string[]> = {};
 for (const u of Object.values(UNITS)) for (const at of u.at) if (at !== 'city') (UNITS_AT[at] ??= []).push(u.id);
 
-const ABILITY_LABEL: Record<string, string> = { digIn: 'Dig', flare: 'Flare', smoke: 'Smoke', barrage: 'Barge', afterburner: 'Burn', sonar: 'Sonar' };
+const ABILITY_LABEL: Record<string, string> = { digIn: 'Dig', flare: 'Flare', smoke: 'Smoke', barrage: 'Barge', afterburner: 'Burn', sonar: 'Sonar', steamroll: 'Roll', carpet: 'Carpt' };
+/** a price short enough for a button's corner: 100000 → 100k */
+const short = (n: number) => (n >= 10000 ? `${Math.round(n / 1000)}k` : `${n}`);
+/** Sell (and Cancel) answer to these keys as well as Z */
+const SELL_KEYS = ['Delete', 'Backspace'];
 const SHORT_POWER: Record<PowerId, string> = { recon: 'Recon', supplyDrop: 'Aid', repair: 'Fix', rally: 'Rally', strike: 'Strike', paradrop: 'Para', help: 'Help' };
 /** sprite names of the units and buildings each tech unlocks */
 const UNLOCKS = new Map<string, string[]>();

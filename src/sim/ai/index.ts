@@ -19,7 +19,7 @@ import type { AiDifficulty, AiPersonality, Building, City, Command, Ent, MatchSt
 import { TICK_RATE } from '../types';
 import { placementProblem } from '../commands';
 import { nav, compOf, passable, nearestPassable, type Nav } from '../nav';
-import { unitCost, hqOf, enemies, unitMaxHp, buildingCap, buildingCount, buildingMaxHp, insurgent, missingBuilding } from '../world';
+import { unitCost, hqOf, enemies, unitMaxHp, buildingCap, buildingCount, buildingMaxHp, insurgent, limitReached, missingBuilding } from '../world';
 import { charges, chestTroops, dropBlocked, squadProgress } from '../insurgency';
 import { trainsAt } from '../laststand';
 import { armyValue } from '../lifecycle';
@@ -428,7 +428,8 @@ class Brain implements Ai {
     if (mines < 2 && freeOre()) return 'mine';
     for (const [kind, n, at] of this.plan.build) {
       if (t < at || this.count(kind) >= n || !unlocked(kind)) continue;
-      if (kind === 'launch' && !s.setup.victory.science) continue;
+      // a Launch Site costs a fortune: build it with the money in hand, never save up for it
+      if (kind === 'launch' && (!s.setup.victory.science || p.cash - this.spent < BUILDINGS.launch.cost.cash || p.oil < BUILDINGS.launch.cost.oil)) continue;
       if (kind === 'airfield' && this.count('factory') === 0) continue;
       return kind;
     }
@@ -568,7 +569,9 @@ class Brain implements Ai {
     for (const b of order) {
       if (b.built < 1 || !PRODUCERS.has(b.kind) || (b.kind === 'hq' && !p.lastStand) || b.prod.length >= this.lv.queue) continue;
       if (b.kind === 'dock' && !this.seaDocks().includes(b)) continue;
-      const options = Object.keys(weights).filter((k) => trainsAt(s, b, k) && (!UNITS[k].tech || p.techs.includes(UNITS[k].tech!)));
+      // a unit with a limit (the mega units) only with its oil in hand and room under the limit
+      const options = Object.keys(weights).filter((k) => trainsAt(s, b, k) && (!UNITS[k].tech || p.techs.includes(UNITS[k].tech!))
+        && (!UNITS[k].limit || (oil >= unitCost(s, this.player, k).oil && !limitReached(s, this.player, k))));
       if (!options.length) continue;
       const total = options.reduce((a, k) => a + (counts.get(k) ?? 0), 0) + 1;
       const wsum = options.reduce((a, k) => a + weights[k], 0);
@@ -1373,6 +1376,11 @@ class Brain implements Ai {
       if (!ab || s.tick < u.abReady || !u.tgt) continue;
       if (ab === 'smoke' && u.hp < unitMaxHp(s, u) * 0.5) use.push(u.id);
       else if (ab === 'barrage' || ab === 'sonar' || ab === 'afterburner') use.push(u.id);
+      // the mega units: crush and carpet-bomb once they are on top of the fight
+      else if (ab === 'steamroll' || ab === 'carpet') {
+        const t = s.ents[u.tgt];
+        if (t && Math.hypot(t.x - u.x, t.y - u.y) < (ab === 'carpet' ? 3 : 6)) use.push(u.id);
+      }
     }
     if (use.length) this.send({ t: 'ability', p: this.player, ids: use });
   }

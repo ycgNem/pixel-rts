@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { LoopbackHub } from '../src/net/transport';
 import { LobbyClient, LobbyHost, type ClientSession } from '../src/net/online';
 import type { Session } from '../src/net/session';
-import { PROTOCOL_VERSION, SNAP_EVERY, SnapshotEncoder, applySnapshot, type NetMsg } from '../src/net/protocol';
-import { createMatch } from '../src/sim/match';
+import { PROTOCOL_VERSION, SNAP_EVERY, SnapshotEncoder, applySnapshot, snapshotFrame, type NetMsg } from '../src/net/protocol';
+import { createMatch, step } from '../src/sim/match';
+import { createAi } from '../src/sim/ai';
+import type { Command } from '../src/sim/types';
 import { TICK_RATE, type Unit } from '../src/sim/types';
 import { setup } from './helpers';
 
@@ -252,13 +254,61 @@ describe('online', () => {
     const enc = new SnapshotEncoder();
     applySnapshot(b, enc.encode(a, [], true));
     const d = enc.encode(a, []);
-    expect(d.u.length + d.b.length).toBe(0); // nothing changed
+    expect(d.u.length + d.m.length + d.b.length).toBe(0); // nothing changed
+    expect(d.players).toBeUndefined();
     const u = Object.values(a.ents).find((e): e is Unit => e.t === 'u')!;
     u.x += 1;
+    // a unit that only moved goes in a short move row
     const d2 = enc.encode(a, []);
-    expect(d2.u.length).toBe(1);
+    expect(d2.u.length).toBe(0);
+    expect(d2.m.length).toBe(1);
     applySnapshot(b, d2);
     expect((b.ents[u.id] as Unit).x).toBeCloseTo(u.x, 2);
+    // a new order needs the full row
+    u.order = { o: 'attack', t: 1 };
+    const d3 = enc.encode(a, []);
+    expect(d3.u.length).toBe(1);
+    applySnapshot(b, d3);
+    expect((b.ents[u.id] as Unit).order).toMatchObject({ o: 'attack', t: 1 });
+    // money changes go as numbers, not whole players; city growth likewise
+    a.players[0].cash += 123.456;
+    a.cities[0].grow = 0.5;
+    const d4 = enc.encode(a, []);
+    expect(d4.players).toBeUndefined();
+    expect(d4.cities).toBeUndefined();
+    applySnapshot(b, d4);
+    expect(b.players[0].cash).toBeCloseTo(a.players[0].cash, 1);
+    expect(b.cities[0].grow).toBeCloseTo(0.5, 3);
+    // anything else about a player sends the player
+    a.players[0].techs.push('rocketry');
+    const d5 = enc.encode(a, []);
+    expect(d5.players).toBeDefined();
+    applySnapshot(b, d5);
+    expect(b.players[0].techs).toContain('rocketry');
+  });
+
+  it("a client fed snapshots through JSON keeps the host's state through an AI match", () => {
+    const st = setup({ seed: 9 }, 4);
+    st.players.forEach((p) => { p.kind = 'ai'; p.ai = { difficulty: 'hard' }; });
+    const host = createMatch(st), client = createMatch(st);
+    const ais = host.players.map((p) => createAi(host, p.id, 'hard'));
+    // two peers share each frame, like a host with two guests
+    const encs = [new SnapshotEncoder(), new SnapshotEncoder()];
+    for (let t = 0; t < 4 * 60 * TICK_RATE; t++) {
+      const cmds: Command[] = [];
+      for (const ai of ais) cmds.push(...ai.think(host));
+      const ev = step(host, cmds);
+      if (host.tick % SNAP_EVERY) continue;
+      const frame = snapshotFrame(host);
+      const snaps = encs.map((e) => e.encode(host, ev, false, frame));
+      applySnapshot(client, JSON.parse(JSON.stringify(snaps[1])));
+    }
+    const units = (s: typeof host) => Object.values(s.ents).filter((e): e is Unit => e.t === 'u')
+      .map((u) => [u.id, u.kind, u.owner, Math.round(u.x * 100), Math.round(u.y * 100), Math.round(u.hp * 10), u.order?.o ?? '', u.inside]);
+    expect(units(client)).toEqual(units(host));
+    expect(Object.keys(client.ents)).toEqual(Object.keys(host.ents));
+    expect(client.players.map((p) => [Math.round(p.cash), Math.round(p.oil), p.techs, p.stats.kills])).toEqual(host.players.map((p) => [Math.round(p.cash), Math.round(p.oil), p.techs, p.stats.kills]));
+    expect(client.cities.map((c) => [c.owner, c.level, Math.round(c.grow * 1000), c.prod.map((it) => Math.round(it.left))])).toEqual(host.cities.map((c) => [c.owner, c.level, Math.round(c.grow * 1000), c.prod.map((it) => Math.round(it.left))]));
   });
 
   it('snapshots carry the open city contract and a knocked-out player\'s insurgency', () => {

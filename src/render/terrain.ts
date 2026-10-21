@@ -1,14 +1,16 @@
 // Terrain: the painted ground (./painter.ts) baked into chunk canvases, plus the animated water on
 // top (waves lapping the shore, glints on open water).
 //
-// Baking a chunk is the expensive part, so: chunks the camera needs at a pixel-perfect zoom are
-// baked at once; the strategic view bakes a few per frame and shows a coarse map in the gaps; and
-// when nothing else is waiting, the chunks just outside the view are baked ahead of a pan.
+// Baking a chunk is the expensive part (tens of ms), so it is done a slice at a time
+// (Painter.paintSteps) within a time budget per frame: the chunks on screen first, then the ones
+// the camera is heading for. A chunk still being painted shows its quarter-size copy from an
+// earlier bake, or the coarse one-pixel-per-tile map, for the few frames it takes. Only the very
+// first frame bakes everything on screen at once.
 import { TERRAIN } from '../data/terrain';
 import { PALETTE, PALETTE_RGB, C } from '../data/palette';
 import type { GameMap } from '../sim/types';
 import { hash2 } from '../sim/rng';
-import { Painter } from './painter';
+import { Painter, type Painted } from './painter';
 import { sprite as spriteOf } from './art';
 import { makeCanvas, ctx2d } from './pixbuf';
 import { TILE } from './view';
@@ -17,9 +19,13 @@ export const CHUNK = 16;
 const S = CHUNK * TILE;
 /** the strategic view's copy of a chunk (a quarter of the size) */
 const SMALL = S / 4;
-/** ms of baking allowed per frame when a chunk isn't strictly needed yet */
-const BUDGET = 9;
-/** full-size chunks kept (each is 1 MB) */
+/** ms of baking per frame for chunks on screen, and for chunks ahead of a pan (never past BUDGET in all) */
+const NEED_BUDGET = 8, AHEAD_BUDGET = 4, BUDGET = 10;
+/** chunks around the view baked ahead, and how many frames of camera motion to look ahead */
+const AHEAD = 1, LEAD = 40;
+/** a half-painted chunk off screen this many frames is dropped (its buffers are big) */
+const STALE_JOB = 240;
+/** full-size chunks kept (each is 1 MB): at least this many, and always the view and the ring ahead of it */
 const KEEP = 56;
 /** wave layer refresh (ms), and a wave's trip from open water to the sand (s) */
 const ANIM_MS = 90, WAVE_S = 3.4;
@@ -33,6 +39,8 @@ interface Chunk {
   glints: Uint32Array;
   anim: HTMLCanvasElement | null;
   animAt: number;
+  /** painting in progress */
+  job: Generator<void, Painted> | null;
 }
 
 export class TerrainLayer {
@@ -42,6 +50,13 @@ export class TerrainLayer {
   private overview: HTMLCanvasElement;
   private cw: number;
   private chh: number;
+  /** nothing drawn yet: the first frame bakes what it shows */
+  private fresh = true;
+  /** the view's middle last frame, and its smoothed motion (chunks per frame) */
+  private lastMid: [number, number] | null = null;
+  private vel: [number, number] = [0, 0];
+  /** full-size chunks to keep this frame */
+  private keep = KEEP;
 
   constructor(private map: GameMap, seed = 0) {
     this.painter = new Painter(map, seed);
@@ -65,39 +80,47 @@ export class TerrainLayer {
     const cx0 = Math.max(0, Math.floor(x0 / CHUNK)), cy0 = Math.max(0, Math.floor(y0 / CHUNK));
     const cx1 = Math.min(this.cw - 1, Math.floor(x1 / CHUNK)), cy1 = Math.min(this.chh - 1, Math.floor(y1 / CHUNK));
     const strategic = z < 1;
-    ctx.imageSmoothingEnabled = strategic;
-    let pending = false;
+    // (a first frame of the strategic view can show the coarse map: it would be the whole map)
+    const need = this.fresh && !strategic ? Infinity : t0 + NEED_BUDGET;
+    this.fresh = false;
+    this.keep = Math.max(KEEP, (cx1 - cx0 + 1 + 2 * AHEAD) * (cy1 - cy0 + 1 + 2 * AHEAD) + 4);
     for (let cy = cy0; cy <= cy1; cy++)
       for (let cx = cx0; cx <= cx1; cx++) {
         const sx = toScreenX(cx * CHUNK), sy = toScreenY(cy * CHUNK);
         const ex = toScreenX((cx + 1) * CHUNK), ey = toScreenY((cy + 1) * CHUNK);
-        let ch = this.chunks.get(cy * 4096 + cx);
-        const ready = ch && (z <= 0.25 ? ch.small || ch.c : ch.c);
-        if (!ready) {
-          // pixel-perfect zooms can't wait; the strategic view bakes within its budget
-          if (strategic && performance.now() - t0 > BUDGET) {
-            pending = true;
-            ctx.drawImage(this.overview, cx * CHUNK, cy * CHUNK, CHUNK, CHUNK, sx, sy, ex - sx, ey - sy);
-            continue;
-          }
-          ch = this.bake(cx, cy);
+        const ch = this.chunk(cx, cy);
+        ch.used = this.frame;
+        const tiny = z <= 0.25 && ch.small;
+        if (!ch.c && !tiny && performance.now() < need) this.advance(ch, cx, cy, need);
+        const img = tiny ? ch.small : ch.c ?? ch.small;
+        // still being painted: its strategic copy (smoothed), or the coarse map
+        ctx.imageSmoothingEnabled = strategic || !ch.c;
+        if (img) ctx.drawImage(img, sx, sy, ex - sx, ey - sy);
+        else ctx.drawImage(this.overview, cx * CHUNK, cy * CHUNK, CHUNK, CHUNK, sx, sy, ex - sx, ey - sy);
+        if (!strategic && ch.c && ch.shore.length + ch.glints.length) {
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(this.animate(ch, cx, cy, now), sx, sy, ex - sx, ey - sy);
         }
-        ch!.used = this.frame;
-        const img = z <= 0.25 && ch!.small ? ch!.small : (ch!.c ?? this.full(ch!, cx, cy));
-        ctx.drawImage(img, sx, sy, ex - sx, ey - sy);
-        if (!strategic && ch!.shore.length + ch!.glints.length) ctx.drawImage(this.animate(ch!, cx, cy, now), sx, sy, ex - sx, ey - sy);
       }
     ctx.imageSmoothingEnabled = false;
-    // nothing waiting: bake ahead of a pan, one chunk just outside the view
-    if (!pending && !strategic && performance.now() - t0 < BUDGET / 2) {
-      search: for (let cy = cy0 - 1; cy <= cy1 + 1; cy++)
-        for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) {
-          if (cx < 0 || cy < 0 || cx >= this.cw || cy >= this.chh) continue;
-          const ch = this.chunks.get(cy * 4096 + cx);
-          if (ch?.c) continue;
-          this.bake(cx, cy).used = this.frame;
-          break search;
-        }
+    // the time left: bake ahead, nearest first to where the camera is heading
+    const mid: [number, number] = [(x0 + x1) / 2 / CHUNK, (y0 + y1) / 2 / CHUNK];
+    if (this.lastMid) for (const i of [0, 1]) this.vel[i] = this.vel[i] * 0.8 + (mid[i] - this.lastMid[i]) * 0.2;
+    this.lastMid = mid;
+    const until = Math.min(t0 + BUDGET, performance.now() + AHEAD_BUDGET);
+    if (!strategic || z > 0.25) {
+      const hx = mid[0] + this.vel[0] * LEAD, hy = mid[1] + this.vel[1] * LEAD;
+      while (performance.now() < until) {
+        let best: [number, number] | null = null, bd = Infinity;
+        for (let cy = Math.max(0, cy0 - AHEAD); cy <= Math.min(this.chh - 1, cy1 + AHEAD); cy++)
+          for (let cx = Math.max(0, cx0 - AHEAD); cx <= Math.min(this.cw - 1, cx1 + AHEAD); cx++) {
+            if (this.chunks.get(cy * 4096 + cx)?.c) continue;
+            const d = Math.hypot(cx + 0.5 - hx, cy + 0.5 - hy);
+            if (d < bd) { bd = d; best = [cx, cy]; }
+          }
+        if (!best) break;
+        this.advance(this.chunk(best[0], best[1]), best[0], best[1], until);
+      }
     }
     this.forget();
   }
@@ -109,29 +132,43 @@ export class TerrainLayer {
 
   invalidate() {
     this.chunks.clear();
+    this.fresh = true;
   }
 
-  /** Paint a chunk: the full canvas and its strategic copy, and the water pixels for the waves. */
-  private bake(cx: number, cy: number): Chunk {
+  private chunk(cx: number, cy: number): Chunk {
     const key = cy * 4096 + cx;
     let ch = this.chunks.get(key);
     if (!ch) {
-      ch = { c: null, small: null, used: this.frame, shore: new Uint32Array(0), shoreK: new Uint8Array(0), glints: new Uint32Array(0), anim: null, animAt: -1e9 };
+      ch = { c: null, small: null, used: this.frame, shore: new Uint32Array(0), shoreK: new Uint8Array(0), glints: new Uint32Array(0), anim: null, animAt: -1e9, job: null };
       this.chunks.set(key, ch);
     }
-    this.full(ch, cx, cy);
     return ch;
   }
 
-  private full(ch: Chunk, cx: number, cy: number): HTMLCanvasElement {
-    if (ch.c) return ch.c;
-    const p = this.painter.paint(cx * S, cy * S, S);
+  /** Paint more of a chunk until it is done (true) or `until` (ms) passes; at least one slice. */
+  private advance(ch: Chunk, cx: number, cy: number, until: number): boolean {
+    if (ch.c) return true;
+    ch.job ??= this.painter.paintSteps(cx * S, cy * S, S);
+    for (;;) {
+      const r = ch.job.next();
+      if (r.done) {
+        ch.job = null;
+        this.finish(ch, cx, cy, r.value);
+        return true;
+      }
+      if (performance.now() >= until) return false;
+    }
+  }
+
+  /** A painted chunk: the full canvas and its strategic copy, and the water pixels for the waves. */
+  private finish(ch: Chunk, cx: number, cy: number, p: Painted) {
     const c = makeCanvas(S, S);
     const ctx = ctx2d(c);
     ctx.putImageData(p.img, 0, 0);
     for (const [s, x, y] of p.sprites) ctx.drawImage(s.img, s.x, s.y, s.w, s.h, Math.round(x - s.ox), Math.round(y - s.oy), s.w, s.h);
     this.deposits(ctx, cx * CHUNK, cy * CHUNK);
     ch.c = c;
+    ch.anim = null;
     ch.shore = p.shore;
     ch.shoreK = p.shoreK;
     ch.glints = p.glints;
@@ -142,16 +179,18 @@ export class TerrainLayer {
       sctx.imageSmoothingQuality = 'medium';
       sctx.drawImage(c, 0, 0, SMALL, SMALL);
     }
-    return c;
   }
 
   /** Free the full-size canvases of chunks not drawn lately (their strategic copies stay). */
   private forget() {
     let full = 0;
-    for (const ch of this.chunks.values()) if (ch.c) full++;
-    if (full <= KEEP) return;
+    for (const ch of this.chunks.values()) {
+      if (ch.c) full++;
+      else if (ch.job && this.frame - ch.used > STALE_JOB) ch.job = null;
+    }
+    if (full <= this.keep) return;
     const old = [...this.chunks.values()].filter((ch) => ch.c).sort((a, b) => a.used - b.used);
-    for (const ch of old.slice(0, full - KEEP)) {
+    for (const ch of old.slice(0, full - this.keep)) {
       ch.c = null;
       ch.anim = null;
     }

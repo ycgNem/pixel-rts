@@ -5,6 +5,7 @@ import { Fog } from '../render/fog';
 import { Minimap } from '../render/minimap';
 import { Fx } from '../render/fx';
 import { WorldRenderer, type WorldView } from '../render/world';
+import { LaunchFinale } from '../render/finale';
 import { Controller } from '../ui/control';
 import { Hud } from '../ui/hud';
 import { hqOf } from '../sim/world';
@@ -44,6 +45,9 @@ export class MatchScreen implements Screen {
   private drift = { a: 0, x: 0, y: 0 };
   /** the tick of the last save (-1 once the match is over and the save is gone) */
   private savedAt: number;
+  /** a science win's rocket finale, while it plays (and whether it has been set up) */
+  private finale: LaunchFinale | null = null;
+  private finaleSeen = false;
 
   constructor(private app: App, public session: Session, private opts: MatchOptions = {}) {
     const s = session.state;
@@ -134,8 +138,22 @@ export class MatchScreen implements Screen {
     this.fx.update(dt);
     this.ctl.prune();
 
+    // a science win: the island goes up before the end screen
+    if (s.over?.reason === 'science' && !this.finaleSeen && !this.opts.demo) {
+      this.finaleSeen = true;
+      const site = s.launch ? s.ents[s.launch.id] : undefined;
+      if (site) this.finale = new LaunchFinale(s, site.x, site.y);
+      else audio.sfx(s.over.winners === team ? 'victory' : 'defeat');
+    }
+    const finale = this.finale && !this.finale.done ? this.finale : null;
+
     app.ui.begin(ctx, app.input, app.uiScale);
-    if (this.opts.demo) {
+    if (finale) {
+      finale.update(dt, this.cam);
+      this.cam.update(dt);
+      this.fx.shake = Math.max(this.fx.shake, finale.shake());
+      if (finale.done) audio.sfx(s.over!.winners === team ? 'victory' : 'defeat');
+    } else if (this.opts.demo) {
       // drift in tiles (the camera snaps to whole pixels, so slow pans need their own position)
       this.drift.a += dt * 0.05;
       this.drift.x = Math.max(12, Math.min(s.map.w - 12, this.drift.x + Math.cos(this.drift.a) * 0.6 * dt));
@@ -150,9 +168,22 @@ export class MatchScreen implements Screen {
     ctx.save();
     if (this.fx.shake > 0.5) ctx.translate(Math.round((Math.random() - 0.5) * this.fx.shake), Math.round((Math.random() - 0.5) * this.fx.shake));
     this.world.draw(ctx, s, this.cam, this.fog, this.fx, view);
+    // (the island stays scorched behind the end screen)
+    this.finale?.draw(ctx, this.cam);
     this.fx.drawText(ctx, this.cam, app.uiScale);
     ctx.restore();
     if (this.opts.demo) {
+      app.ui.end();
+      return;
+    }
+    if (finale && !finale.done) {
+      finale.overlay(ctx, this.cam.w, this.cam.h);
+      if (finale.t > 0.5) app.ui.textCenter('Any key or click: skip', app.ui.w / 2, app.ui.h - 14, '#c7dcd0');
+      const inp = app.input;
+      if (finale.t > 0.5 && (inp.pressed.size > 0 || inp.mouse.pressed[0] || inp.mouse.pressed[2])) {
+        finale.skip();
+        audio.sfx(s.over!.winners === team ? 'victory' : 'defeat');
+      }
       app.ui.end();
       return;
     }
@@ -219,7 +250,8 @@ export class MatchScreen implements Screen {
         case 'weather': if (e.kind === 'storm') audio.sfx('thunder', 0.8); break;
         case 'launch': audio.sfx('siren'); break;
         case 'reject': if (e.p === me) audio.sfx('error'); break;
-        case 'over': audio.sfx(e.winners === team ? 'victory' : 'defeat'); break;
+        // (a science win's fanfare waits for its finale)
+        case 'over': if (e.reason !== 'science' || this.opts.demo) audio.sfx(e.winners === team ? 'victory' : 'defeat'); break;
       }
     }
     this.intensity = this.intensity * 0.97 + Math.min(1, fighting / 6) * 0.03;

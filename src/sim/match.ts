@@ -14,7 +14,7 @@ import { sec } from './world';
 import { applyCommand } from './commands';
 import { stepIncome, stepResearch, stepConstruction, stepCrews, stepTraining, incomeOf } from './economy';
 import { stepCities, stepPartisans, stepResistance } from './cities';
-import { acquireTargets, fireWeapons, stepShots, cityGuns, stepFires } from './combat';
+import { acquireTargets, fireWeapons, stepShots, cityGuns, stepFires, stepMegaAbilities } from './combat';
 import { stepMovement } from './move';
 import { stepEffects, stepCrates, stepAutoDig } from './powers';
 import { stepHomeFront } from './territory';
@@ -97,6 +97,7 @@ export function step(s: MatchState, cmds: Command[]): SimEvent[] {
   stepMovement(s);
   stepTransports(s, ev);
   fireWeapons(s, ev);
+  stepMegaAbilities(s, ev);
   cityGuns(s, ev);
   stepShots(s, ev);
   stepEffects(s, ev);

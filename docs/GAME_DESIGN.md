@@ -82,7 +82,8 @@ Everything borrowed gets a twist of our own.
   clients rebuild it instead of downloading it. Map types:
   - **Pangaea**: one landmass; every start can walk to every other (guaranteed).
   - **Lakes**: mostly land broken up by lakes; starts connected by land (guaranteed).
-  - **The river** (Pangaea and Lakes): a winding river runs from the map edge through the middle
+  - **The river** (Pangaea and Lakes, unless **River: Off** in the setup, which gives open land
+    all the way across): a winding river runs from the map edge through the middle
     and out again, splitting the players into two sides (2 v 2, 3 v 3; 2 v 1 and 3 v 2 with odd
     counts). Each half runs along the gap between two neighbouring starts, so no start sits on
     it. **Two bridges** cross it, one on each half and the same distance from the middle, and a
@@ -149,7 +150,8 @@ Everything borrowed gets a twist of our own.
 
 ### The exchange (our twist)
 
-The HQ's command card has three trades: **Buy Oil** ($250 → 100 oil), **Sell Oil** (100 oil →
+The HQ's command card has three trades: **Buy Oil** ($1,250 → 100 oil: five times its old
+price, so oil comes from Derricks, not the bank), **Sell Oil** (100 oil →
 $150) and **Fund Research** ($400 → 100 science; needs a finished Lab). Each trade makes the next
 of its kind 10% dearer; prices cool back down over a few minutes. It turns a lopsided economy
 (lots of cash, no oil; a maxed-out army and money in the bank) into something useful without
@@ -169,7 +171,15 @@ has the fewest Builders, so every project gets one before any gets a second. (Th
 own crews.) Builders also repair, for 30% of the cost: at most
 three count, each heals at most 40 HP/s, and **nobody can patch a building with an armed enemy
 within 6 tiles**. A building cancelled during construction refunds 75%; a finished one can be sold
-(click twice). With no rally point, new ground units walk a few tiles clear of the door.
+(click twice, or Z twice). With no rally point, new ground units walk a few tiles clear of the door.
+
+**Work zones (our twist on roaming crews):** give Builders a zone (Zone, G: click a spot for a
+zone of radius 8 tiles, or drag out its radius, 3 to 24 tiles) and they stop
+roaming the base. They build your unfinished buildings inside it (fewest Builders first) and
+repair your damaged ones there (not under fire), walk back if something pulls them out, and with
+nothing to do walk the zone's edge, resting 3 s at each of six stops. A Build or repair order
+still sends them anywhere, and they come back afterwards; a Move or Stop order frees them. The
+selected Builders' zones show as dashed green circles.
 
 | Building | Tiles | HP | Cost | Unlocked by | What it does |
 |---|---|---|---|---|---|
@@ -185,7 +195,7 @@ within 6 tiles**. A building cancelled during construction refunds 75%; a finish
 | AA Gun | 1×1 | 450 | $250 | Anti-Air | Defense against aircraft |
 | Coastal Battery | 2×2 | 900 | $500 | Naval Doctrine | Long-range defense against ships |
 | Radar | 2×2 | 700 | $500 | Radar | Large sight radius |
-| Launch Site | 5×5 | 4,000 | $3,000 + 500 oil | Space Program | Science victory (§9) |
+| Launch Site | 5×5 | 4,000 | $100,000 + 5,000 oil | Space Program | Science victory (§9): a fortune, built only by a runaway economy |
 
 Production buildings hold a queue of 5 orders (shift-click adds 5 at a time) and a rally point.
 Selecting several buildings of one kind spreads orders across their queues.
@@ -204,19 +214,26 @@ Every weapon says which layers it can hit.
 | Rocket Trooper | Barracks | Rocketry | $130 | 1 | Anti-vehicle: beats Light Tanks cost for cost. Captures. |
 | Flak Trooper | Barracks | Anti-Air | $100 | 1 | Anti-air infantry |
 | Scout Car | Factory | start | $150 + 10 oil | 1 | Fast, long sight, light gun. Recon flare. |
-| Light Tank | Factory | start | $300 + 55 oil | 2 | Main battle unit early on: cannon plus a machine gun. 380 HP, 18 s to build. Smoke screen. |
-| Heavy Tank | Factory | Heavy Armor | $500 + 100 oil | 3 | Breaks defensive lines. Cannon plus a machine gun. 820 HP: beats Light Tanks cost for cost; Rocket Troopers beat it. |
+| Light Tank | Factory | start | $300 + 55 oil | 2 | Main battle unit early on: cannon plus a machine gun. 409 HP, 18 s to build. Smoke screen. |
+| Heavy Tank | Factory | Heavy Armor | $500 + 100 oil | 3 | Breaks defensive lines. Cannon plus a machine gun. 882 HP: beats Light Tanks cost for cost; Rocket Troopers beat it. |
 | Artillery | Factory | Artillery | $400 + 70 oil | 3 | Long range, splash. Barrage. |
 | Flak Truck | Factory | Anti-Air | $250 + 30 oil | 2 | Mobile anti-air |
+| **Mega Tank** | Factory | Composite Armor | $1,000 + 1,500 oil | 8 | A land dreadnought, twice a Heavy Tank's size: 3,440 HP, a triple cannon (splash), machine guns and flak. **Steamroller:** 8 s 40% faster, crushing enemy infantry under its tracks. **3 at most at a time.** |
 | Fighter | Airfield | Flight | $300 + 80 oil | 2 | Hunts aircraft. Afterburner. |
-| Bomber | Airfield | Bombers | $600 + 120 oil | 4 | Heavy damage to ground targets and buildings |
+| Bomber | Airfield | Bombers | $600 + 120 oil | 4 | Heavy damage to ground targets and buildings (108 a bomb) |
 | Attack Helicopter | Airfield | Rotorcraft | $450 + 100 oil | 3 | Anti-armor |
+| **Mega Plane** | Airfield | Jet Engines | $1,000 + 1,500 oil | 8 | A black flying wing: 2,000 HP, 200-damage bombs, missiles against fighters. **Carpet Bomb:** for 4 s a bomb falls under it every 0.4 s, wherever it flies. **3 at most at a time.** |
 | Patrol Boat | Dock, or a Harbor city | Shipbuilding | $200 + 20 oil | 2 | Fast, light |
 | Transport Ship | Dock | Shipbuilding | $250 + 30 oil | 2 | Carries land units. 600 HP. |
 | Destroyer | Dock | Naval Doctrine | $550 + 110 oil | 4 | All-rounder with flak. Sonar finds submarines; depth charges sink them. |
 | Submarine | Dock | Submarines | $450 + 60 oil | 3 | Hidden until detected. Torpedoes sink battleships. |
 | Merchant Ship | a coastal city (convoys) | needs a Dock | free | 0 | Unarmed trade ship; pays at your Dock |
 | Battleship | Dock | Dreadnoughts | $1,000 + 200 oil | 6 | Long-range shore bombardment. 2,400 HP: outguns destroyers. |
+
+**Ground units hit harder and last longer:** every ground unit (infantry and vehicles) has 7.5%
+more HP and damage than the first balance (Rifleman 86 HP and 8.6 a shot, for example). Bombers
+deal 10% less. The **mega units** count toward their limit while in training, so a fourth can't
+be queued; the AI only picks one with the oil already banked.
 
 **The naval triangle:** destroyers beat submarines (depth charges), battleships beat destroyers
 (armor and big guns), submarines beat battleships (torpedoes). A patrol boat and destroyer
@@ -262,7 +279,7 @@ can't target that class.
 Dug-in infantry take 40% less damage. Units standing in smoke take half damage from range.
 
 **Unit orders:** move, attack, attack-move, stop, hold position, patrol, waypoints (shift), load
-and unload (transports), build and repair (Builders), abilities, **sell** (Delete, click twice: 50% of the cash and oil cost back, times the unit's share of full HP; not merchant ships or a loaded transport; a sold unit doesn't count as lost). Finished buildings sell for 50% of their cash cost the same way. Units fire automatically at
+and unload (transports), build and repair (Builders), work zones (Builders), abilities, **sell** (Z twice or click twice: 50% of the cash and oil cost back, times the unit's share of full HP; not merchant ships or a loaded transport; a sold unit doesn't count as lost). Finished buildings sell for 50% of their cash cost the same way. Units fire automatically at
 enemies in range.
 
 ---
@@ -453,9 +470,14 @@ explains the conditions.
   sees the countdown and gets an alert when it starts. AI players drop other plans to break a
   supremacy run or a launch, and in a free-for-all they gang up on a player whose public score is
   far ahead of the rest.
-- **Science:** research Space Program, build a **Launch Site**, and keep it standing through a
-  **4-minute countdown**. The launch is announced to everyone. If the site is destroyed, the
-  countdown stops.
+- **Science:** research Space Program, build a **Launch Site** ($100,000 + 5,000 oil), and keep it
+  standing through a **4-minute countdown**. The launch is announced to everyone, and a big clock
+  under the top bar counts it down for every player (green for your side's rocket, red for a
+  rival's; it blinks in the last 30 s, beeps at 1:00, 0:30 and each of the last 10 seconds, and a
+  click jumps the camera to the pad, which pulses with a beacon). If the site is destroyed, the
+  countdown stops. When it reaches zero the rocket lifts off and **the whole island it stood on
+  goes up**: a white flash, a shockwave and a firestorm sweeping out over every tile of that
+  landmass, leaving it scorched behind the end screen (any key skips the show).
 - **Scrub (our twist):** enemy infantry who hold the ground beside a Launch Site (within 3 tiles of
   its edge) for 10 s, with none of the owner's team's infantry there, push the countdown back 60 s,
   again and again until they are cleared out. Paradrops and landings become the answer to a launch
@@ -586,7 +608,8 @@ match clears the slot.
 | Minimap | Left click jumps the camera, right click gives an order there |
 | B | Build menu (with a Builder selected); every button has a hotkey |
 | O / L / J (HQ selected) | Exchange: buy oil / sell oil / fund research |
-| Delete (twice) | Sell the selected units or building (cancel a building under construction) |
+| Z (twice; Delete or Backspace too) | Sell the selected units or buildings (cancel a building under construction) |
+| G (Builders selected) | Work zone: click, or drag out its size |
 | Tab | Command Powers |
 | Space / Home | Jump to the latest alert / to the HQ |
 | F1 / F2 / F3 | Help / research / match stats |

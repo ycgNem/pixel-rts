@@ -1,6 +1,6 @@
 // Movement: following orders and targets with flow fields, direct steering when the way is clear,
 // separation between units, and group arrival.
-import { UNITS, type UnitDef } from '../data/units';
+import { STEAMROLL, UNITS, type UnitDef } from '../data/units';
 import { BUILDINGS } from '../data/buildings';
 import { COMBAT, SEPARATION } from '../data/rules';
 import { T, TERRAIN } from '../data/terrain';
@@ -81,6 +81,7 @@ export function unitSpeed(s: MatchState, u: Unit, n: Nav): number {
     if (!(d.cls === 'vehicle' && hasPerk(p, 'allWeather'))) v *= groundWeatherMul(s);
   }
   if (d.ability === 'afterburner' && s.tick < u.abUntil) v *= 1.8;
+  if (d.ability === 'steamroll' && s.tick < u.abUntil) v *= STEAMROLL.speed;
   for (const fx of s.effects) if (fx.k === 'rally' && fx.owner === u.owner && Math.hypot(fx.x - u.x, fx.y - u.y) <= fx.r) { v *= 1.3; break; }
   return v;
 }

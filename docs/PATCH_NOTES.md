@@ -2,6 +2,37 @@
 
 Newest first. Play at https://ycgnem.github.io/pixel-rts/
 
+## 2026-10-21: Mega units, work zones and a rocket that ends the world
+
+- **Two mega units**, each $1,000 + 1,500 oil. You can have **at most 3 of each** at a time,
+  counting any still in training.
+  - **Mega Tank** (Factory, after Composite Armor): a land dreadnought on six treads, twice a
+    Heavy Tank's size. 3,440 HP, a triple cannon, machine guns and flak. **Steamroller** (E): 40%
+    faster for 8 seconds, and enemy infantry under its tracks get crushed.
+  - **Mega Plane** (Airfield, after Jet Engines): a black flying wing with eight glowing jets.
+    2,000 HP, 200-damage bombs, and missiles for fighters. **Carpet Bomb** (E): for 4 seconds a
+    bomb falls under it every 0.4 s, wherever you fly it.
+- **A harsher economy.** Buying oil at the HQ costs **$1,250 for 100** (five times the old price);
+  each buy still makes the next one 10% dearer, and prices cool off as before. Oil comes from
+  Derricks now. The **Launch Site costs $100,000 + 5,000 oil.**
+- **Balance:** every ground unit, infantry and vehicles alike, has **7.5% more HP and damage**.
+  **Bombers deal 10% less.**
+- **Builder work zones.** Select Builders, press **Zone (G)** and click a spot (or drag to size
+  it). They build and repair only inside that zone, come back if something pulls them away, and
+  walk its edge when there's nothing to do. No more Builders sprinting across the map. A Move or
+  Stop order frees them. The zone shows as a dashed green circle.
+- **Sell hotkey: Z.** Press it twice to sell the selected units or buildings (Delete and Backspace
+  still work). Selling several selected buildings sells them all.
+- **The rocket can't be missed.** A big countdown clock sits under the top bar for every player,
+  green for your side's rocket and red for a rival's. It blinks in the last 30 seconds and beeps
+  through the last 10. Click it to look at the pad, which pulses with a beacon. When the countdown
+  ends, the rocket lifts off and **the whole island it stood on blows up**: a white flash, a
+  shockwave, and a firestorm that sweeps the land and leaves it scorched. Any key skips it.
+- **Maps without a river:** the setup has **River: On/Off** for Pangaea and Lakes maps.
+- **Smoother games.** Online matches send about two-thirds less data, so 4-player games stop
+  lagging. Scrolling onto ground that hasn't been drawn yet no longer stutters: it's painted over
+  a few frames instead of all at once.
+
 ## 2026-10-14: Rivers, busy Builders and slower tanks
 
 - **A river now winds across Pangaea and Lakes maps,** from one edge through the middle to the

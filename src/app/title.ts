@@ -1,7 +1,7 @@
 // Title screen (with an AI-vs-AI battle running behind it), the skirmish setup screen (which is
 // also the online lobby), and the "play online" screen.
 import type { MatchSetup, PlayerSetup, AiDifficulty, AiPersonality, GameMap } from '../sim/types';
-import { VICTORY, type MapSize, type MapType } from '../data/rules';
+import { MAPGEN, VICTORY, type MapSize, type MapType } from '../data/rules';
 import { timeLimitOf } from '../sim/victory';
 import { FieldGuide } from '../ui/guide';
 import { TEAM_COLORS, PALETTE_RGB } from '../data/palette';
@@ -301,6 +301,9 @@ export class SetupScreen implements Screen {
       oy += 17;
     };
     row('Map', capWord(st.mapType), () => (st.mapType = cycle(MAP_TYPES, st.mapType)), 'Pangaea: one big landmass. Lakes: land with inland seas.\nContinents: each start on its own land, across narrow straits.\nIslands: the same across wide, deep channels. Both need ships or aircraft.');
+    const rivers = MAPGEN.river.on.includes(st.mapType);
+    row('River', !rivers ? 'None' : st.river !== false ? 'On' : 'Off', rivers ? () => (st.river = st.river === false) : null,
+      rivers ? 'On: a river splits the map in two, crossed only by two bridges.\nOff: open land all the way across.' : 'Only Pangaea and Lakes maps have a river.');
     row('Size', capWord(st.mapSize), () => (st.mapSize = cycle(MAP_SIZES, st.mapSize)));
     row('Fog of war', capWord(st.fog), () => (st.fog = cycle(['on', 'explored', 'off'] as const, st.fog)), 'On: classic fog. Explored: terrain known from the start. Off: see everything.');
     row('Conquest', 'Always on', null, 'Win by knocking out every enemy (their HQ and every level 2+ city).\nAlways on, so every match can end.');
@@ -454,7 +457,7 @@ export class SetupScreen implements Screen {
 
   private drawPreview(x: number, y: number, size: number) {
     const ui = this.app.ui, st = this.setup;
-    const key = `${st.seed}|${st.mapType}|${st.mapSize}|${st.players.length}`;
+    const key = `${st.seed}|${st.mapType}|${st.mapSize}|${st.players.length}|${st.river !== false}`;
     if (key !== this.previewKey) {
       this.previewKey = key;
       const map = generateMap(st);

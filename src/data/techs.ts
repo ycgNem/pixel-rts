@@ -63,10 +63,10 @@ export const TECHS: TechDef[] = [
   { id: 'radar', name: 'Radar', era: 1, branch: 'science', desc: 'Unlocks the Radar.' },
   // ---- Era III — Modern
   { id: 'rotorcraft', name: 'Rotorcraft', era: 2, branch: 'air', needs: ['flight'], desc: 'Unlocks Attack Helicopters.' },
-  { id: 'jetEngines', name: 'Jet Engines', era: 2, branch: 'air', needs: ['flight'], mods: [{ key: 'aircraftSpeed', mul: 1.3 }], desc: 'Aircraft 30% faster.' },
+  { id: 'jetEngines', name: 'Jet Engines', era: 2, branch: 'air', needs: ['flight'], mods: [{ key: 'aircraftSpeed', mul: 1.3 }], desc: 'Aircraft 30% faster. Unlocks the Mega Plane.' },
   { id: 'submarines', name: 'Submarines', era: 2, branch: 'naval', needs: ['navalDoctrine'], desc: 'Unlocks Submarines.' },
   { id: 'dreadnoughts', name: 'Dreadnoughts', era: 2, branch: 'naval', needs: ['navalDoctrine'], desc: 'Unlocks Battleships.' },
-  { id: 'compositeArmor', name: 'Composite Armor', era: 2, branch: 'land', mods: [{ key: 'vehicleHp', mul: 1.2 }], desc: 'Vehicles +20% HP.' },
+  { id: 'compositeArmor', name: 'Composite Armor', era: 2, branch: 'land', mods: [{ key: 'vehicleHp', mul: 1.2 }], desc: 'Vehicles +20% HP. Unlocks the Mega Tank.' },
   { id: 'massTransit', name: 'Mass Transit', era: 2, branch: 'economy', mods: [{ key: 'cityGrowth', mul: 1.25 }, { key: 'citySupply', add: 4 }], desc: 'Cities grow 25% faster and give +4 supply each.' },
   { id: 'computing', name: 'Computing', era: 2, branch: 'science', mods: [{ key: 'allScience', mul: 1.25 }], desc: 'All science +25%.' },
   { id: 'robotics', name: 'Industrial Robotics', era: 2, branch: 'economy', mods: [{ key: 'production', mul: 1.2 }], desc: 'Production 20% faster.' },

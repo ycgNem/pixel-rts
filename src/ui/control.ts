@@ -6,6 +6,7 @@ import type { Building, City, Command, Ent, MatchState, Unit } from '../sim/type
 import { enemies, allied, shortfall } from '../sim/world';
 import { placementProblem } from '../sim/commands';
 import { CAPTURE } from '../data/cities';
+import { WORK_ZONE } from '../data/rules';
 import type { PowerId } from '../data/powers';
 import type { Session } from '../net/session';
 import type { Input } from '../engine/input';
@@ -23,6 +24,7 @@ export type Mode =
   | { m: 'ability' }
   | { m: 'unload' }
   | { m: 'rally' }
+  | { m: 'zone' }
   | { m: 'power'; power: PowerId };
 
 export interface Marker { x: number; y: number; t: number; kind: 'move' | 'attack' | 'rally' }
@@ -43,6 +45,8 @@ export class Controller {
   my = 0;
   /** placement ghost validity, for the HUD */
   placeWhy: string | null = null;
+  /** where a work zone drag started (Zone mode) */
+  zoneFrom: [number, number] | null = null;
 
   constructor(private session: Session, private cam: Camera, private input: Input, readonly fog: Fog) {}
 
@@ -178,6 +182,8 @@ export class Controller {
     this.hoverCity = city?.id ?? -1;
 
     if (this.mode.m === 'place') this.updatePlace();
+    if (this.zoneFrom && !inp.mouse.down[0]) this.finishZone(now);
+    else if (this.zoneFrom && this.mode.m !== 'zone') this.zoneFrom = null;
 
     if (inp.mouse.pressed[0] && !overUI) {
       if (this.mode.m !== 'normal') {
@@ -301,6 +307,26 @@ export class Controller {
     return t === 0 || t === 1;
   }
 
+  /** The work zone being dragged out: its center and radius in tiles. */
+  zoneDraft(): { x: number; y: number; r: number } {
+    if (!this.zoneFrom) return { x: this.mx, y: this.my, r: WORK_ZONE.r };
+    const [x, y] = this.zoneFrom;
+    const d = Math.hypot(this.mx - x, this.my - y);
+    return { x, y, r: d < 1 ? WORK_ZONE.r : Math.max(WORK_ZONE.min, Math.min(WORK_ZONE.max, d)) };
+  }
+
+  /** Mouse up after a Zone click or drag: hand the selected Builders the zone. */
+  private finishZone(now: number) {
+    const z = this.zoneDraft();
+    this.zoneFrom = null;
+    const ids = this.myUnits().filter((u) => UNITS[u.kind].builds).map((u) => u.id);
+    if (ids.length) {
+      this.send({ t: 'zone', p: this.me, ids, x: z.x, y: z.y, r: z.r });
+      this.markers.push({ x: z.x, y: z.y, t: now, kind: 'rally' });
+    }
+    if (!this.input.shift) this.mode = { m: 'normal' };
+  }
+
   /** Clicks in a targeting mode. */
   private useMode(under: Ent | null, now: number) {
     const m = this.mode;
@@ -339,6 +365,10 @@ export class Controller {
       case 'power':
         this.send({ t: 'power', p: this.me, power: m.power, x, y });
         break;
+      case 'zone':
+        // the zone is handed out on mouse up (a drag sets its size)
+        this.zoneFrom = [x, y];
+        return;
     }
     void under;
     if (!keep || m.m === 'power') this.mode = { m: 'normal' };
@@ -399,7 +429,7 @@ export class Controller {
       this.selCity = -1;
     }
     if (inp.wasPressed('idleBuilder')) {
-      const idle = Object.values(this.s.ents).filter((e): e is Unit => e.t === 'u' && e.owner === this.me && !!UNITS[e.kind].builds && !e.order && !e.inside);
+      const idle = Object.values(this.s.ents).filter((e): e is Unit => e.t === 'u' && e.owner === this.me && !!UNITS[e.kind].builds && !e.order && !e.inside && !e.post);
       if (idle.length) {
         const cur = [...this.selected][0];
         const i = idle.findIndex((u) => u.id === cur);
@@ -446,6 +476,31 @@ export class Controller {
         ctx.stroke();
       }
     }
+    // work zones: the selected Builders' (dashed), and the one being placed (gold)
+    const zones = this.myUnits().filter((u) => u.post).map((u) => u.post!);
+    const seen = new Set<string>();
+    const lw = Math.max(2, Math.round(2 * Math.min(z, 2)));
+    const ring = (x: number, y: number, r: number, stroke: string, fill: string) => {
+      ctx.beginPath();
+      ctx.arc(Math.round(cam.sx(x)), Math.round(cam.sy(y)), Math.round(r * TILE * z), 0, Math.PI * 2);
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = stroke;
+      ctx.stroke();
+    };
+    ctx.lineWidth = lw;
+    ctx.setLineDash([5 * lw, 3 * lw]);
+    for (const zn of zones) {
+      const key = `${zn.x},${zn.y},${zn.r}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      ring(zn.x, zn.y, zn.r, 'rgba(30,188,115,0.9)', 'rgba(30,188,115,0.08)');
+    }
+    if (this.mode.m === 'zone') {
+      const d = this.zoneDraft();
+      ring(d.x, d.y, d.r, '#f9c22b', 'rgba(249,194,43,0.1)');
+    }
+    ctx.setLineDash([]);
     if (this.mode.m === 'power' || this.mode.m === 'ability') {
       ctx.strokeStyle = '#f9c22b';
       ctx.lineWidth = Math.max(1, z);

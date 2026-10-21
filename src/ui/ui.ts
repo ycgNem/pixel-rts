@@ -28,6 +28,8 @@ export interface ButtonOpts {
   icon?: Sprite | null;
   /** key code that also triggers it, and the letter shown in the corner */
   hotkey?: string;
+  /** more key codes that trigger it (not shown) */
+  altKeys?: string[];
   disabled?: boolean;
   active?: boolean;
   tip?: string;
@@ -232,10 +234,12 @@ export class UI {
     }
     let hit = hov && this.input.mouse.pressed[0];
     if (hit) { this.input.consumeMouse(0); audio.sfx('click'); }
-    if (!hit && o.hotkey && !this.modalBlocked() && this.input.keyPressed(o.hotkey) && !this.usedKeys.has(o.hotkey)) {
+    if (!hit && !this.modalBlocked()) for (const k of o.hotkey ? [o.hotkey, ...(o.altKeys ?? [])] : []) {
+      if (!this.input.keyPressed(k) || this.usedKeys.has(k)) continue;
       hit = true;
-      this.usedKeys.add(o.hotkey);
-      this.input.consumeKey(o.hotkey);
+      this.usedKeys.add(k);
+      this.input.consumeKey(k);
+      break;
     }
     return hit;
   }

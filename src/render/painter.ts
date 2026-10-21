@@ -160,6 +160,18 @@ export class Painter {
 
   /** Paint a chunk of S × S world pixels whose top-left is world pixel (ox, oy). */
   paint(ox: number, oy: number, S: number): Painted {
+    const job = this.paintSteps(ox, oy, S);
+    for (;;) {
+      const r = job.next();
+      if (r.done) return r.value;
+    }
+  }
+
+  /**
+   * The same painting a slice at a time: each `next()` paints 16 rows (a few ms), so the terrain
+   * layer can spread a chunk over several frames instead of stalling one.
+   */
+  *paintSteps(ox: number, oy: number, S: number): Generator<void, Painted> {
     const H = S + BELOW, seed = this.seed;
     const cls = new Uint8Array(S * H);
     const col = new Uint8Array(S * H);
@@ -186,6 +198,7 @@ export class Painter {
 
     // ---- pass 1: classify and color each pixel
     for (let y = 0; y < H; y++) {
+      if (y && !(y & 15)) yield;
       const wy = oy + y, v = wy / TILE - 0.5;
       for (let x = 0; x < S; x++) {
         const wx = ox + x, u = wx / TILE - 0.5, p = y * S + x;
@@ -338,6 +351,7 @@ export class Painter {
       }
     }
 
+    yield;
     // ---- pass 2: south faces. A pixel of higher ground with lower ground just below it shows a
     // face: mountains a cliff, hills a shaded bank, grass a dirt lip over sand.
     for (let y = 0; y < S; y++)
@@ -371,6 +385,7 @@ export class Painter {
         if (cls[p] !== G.MOUNTAIN && cls[p - S] === G.MOUNTAIN && cls[p] >= G.SAND && (x + y) % 2 === 0) col[p] = cls[p] === G.SAND ? C.dust : C.fern;
       }
 
+    yield;
     // ---- bridges: a plank deck between stone parapets, its stone face and shadow on the water
     const deck = this.bridges(ox, oy, S, H, cls, col);
     if (deck) {
@@ -383,6 +398,7 @@ export class Painter {
       glints.length = 0; glints.push(...g2);
     }
 
+    yield;
     // ---- to RGBA
     const img = new ImageData(S, S);
     const d = img.data;
@@ -390,6 +406,7 @@ export class Painter {
       const rgb = PALETTE_RGB[col[p]];
       d[p * 4] = rgb[0]; d[p * 4 + 1] = rgb[1]; d[p * 4 + 2] = rgb[2]; d[p * 4 + 3] = 255;
     }
+    yield;
     return {
       img, shore: Uint32Array.from(shoreN), shoreK: Uint8Array.from(shoreK), glints: Uint32Array.from(glints),
       sprites: this.scatter(ox, oy, S),

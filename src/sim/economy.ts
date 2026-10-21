@@ -3,9 +3,9 @@ import { UNITS } from '../data/units';
 import { BUILDINGS } from '../data/buildings';
 import { CITY_LEVELS, SPECS } from '../data/cities';
 import { COMMAND } from '../data/powers';
-import { LAST_STAND, PRODUCTION, SUPPLY, VICTORY } from '../data/rules';
+import { LAST_STAND, PRODUCTION, SUPPLY, VICTORY, WORK_ZONE } from '../data/rules';
 import { ERAS, TECHS, TECHS_PER_ERA, TECH_COST, TECH_ESCALATE, ALLY_TECH_DISCOUNT, DOCTRINES, PERKS } from '../data/techs';
-import type { Building, City, MatchState, Player, ProdItem, SimEvent, Unit } from './types';
+import type { Building, City, Ent, MatchState, Player, ProdItem, SimEvent, Unit, WorkZone } from './types';
 import { DT, TICK_RATE } from './types';
 import { AI_LEVELS } from '../data/ai';
 import { buildingMaxHp, distTo, enemies, exileCapital, sec, unitCost } from './world';
@@ -14,7 +14,7 @@ import { hasPerk, modAdd, modMul } from './mods';
 import { exitTile, spawnUnit } from './lifecycle';
 import { BUILD_REACH, nextOrder } from './move';
 import { give, orderMove } from './orders';
-import { compOf, nav, nearestPassable, nearestReachable } from './nav';
+import { compOf, nav, nearestPassable, nearestReachable, passable, type Nav } from './nav';
 
 export const TECH_BY_ID = new Map(TECHS.map((t) => [t.id, t]));
 
@@ -232,25 +232,41 @@ export function crewCounts(s: MatchState, p: number): Record<number, number> {
   return out;
 }
 
+/** Does building `b` reach into this work zone? */
+export function inZone(z: WorkZone, b: Ent): boolean {
+  return distTo(b, z.x, z.y) <= z.r;
+}
+
 /**
  * Busy crews: a human player's idle Builders go to work on their unfinished buildings by
  * themselves, the one with the fewest Builders first (then the nearest), so no project sits
- * unattended while a Builder stands around. The AI places its own crews.
+ * unattended while a Builder stands around. The AI places its own crews. A Builder with a work
+ * zone (WORK_ZONE) only takes work inside it: see `zoneWork`.
  */
 export function stepCrews(s: MatchState) {
   if (s.tick % PRODUCTION.autoEvery) return;
   const sites: Building[][] = s.players.map(() => []);
+  const worn: Building[][] = s.players.map(() => []);
   const idle: Unit[][] = s.players.map(() => []);
+  const posted: Unit[][] = s.players.map(() => []);
   for (const id in s.ents) {
     const e = s.ents[id];
-    if (e.owner < 0 || s.players[e.owner].kind !== 'human') continue;
-    if (e.t === 'b') { if (e.built < 1 && e.hp > 0) sites[e.owner].push(e); }
-    else if (UNITS[e.kind].builds && !e.inside && !e.order && !e.queue.length && !e.hold) idle[e.owner].push(e);
+    if (e.owner < 0) continue;
+    if (e.t === 'b') {
+      if (e.hp <= 0) continue;
+      if (e.built < 1) sites[e.owner].push(e);
+      else if (e.hp < buildingMaxHp(s, e)) worn[e.owner].push(e);
+    } else if (UNITS[e.kind].builds && !e.inside && !e.order && !e.queue.length && !e.hold) {
+      if (e.post) posted[e.owner].push(e);
+      else if (s.players[e.owner].kind === 'human') idle[e.owner].push(e);
+    }
   }
   const n = nav(s);
   s.players.forEach((p, pi) => {
-    if (!sites[pi].length || !idle[pi].length) return;
+    if (!posted[pi].length && (!sites[pi].length || !idle[pi].length)) return;
     const crew = crewCounts(s, pi);
+    for (const u of posted[pi]) zoneWork(s, n, u, sites[pi], worn[pi], crew);
+    if (!sites[pi].length) return;
     for (const u of idle[pi]) {
       const comp = compOf(n, 'ground', Math.floor(u.x), Math.floor(u.y));
       let best: Building | null = null, bk = Infinity;
@@ -258,10 +274,7 @@ export function stepCrews(s: MatchState) {
         const d = Math.hypot(b.x - u.x, b.y - u.y);
         if (d > PRODUCTION.autoRadius) continue;
         const k = (crew[b.id] ?? 0) * 1e4 + d;
-        if (k >= bk) continue;
-        // only sites this Builder can walk up to
-        const near = nearestReachable(n, 'ground', Math.floor(b.x), Math.floor(b.y), comp, Math.ceil(BUILDINGS[b.kind].w / 2) + 2);
-        if (!near || distTo(b, near[0] + 0.5, near[1] + 0.5) > BUILD_REACH + 1) continue;
+        if (k >= bk || !canReach(n, comp, b)) continue;
         bk = k;
         best = b;
       }
@@ -270,6 +283,56 @@ export function stepCrews(s: MatchState) {
       crew[best.id] = (crew[best.id] ?? 0) + 1;
     }
   });
+}
+
+/** Can a Builder in ground area `comp` walk up to building `b`? */
+function canReach(n: Nav, comp: number, b: Building): boolean {
+  const near = nearestReachable(n, 'ground', Math.floor(b.x), Math.floor(b.y), comp, Math.ceil(BUILDINGS[b.kind].w / 2) + 2);
+  return !!near && distTo(b, near[0] + 0.5, near[1] + 0.5) <= BUILD_REACH + 1;
+}
+
+/**
+ * An idle Builder with a work zone: it builds the zone's unfinished buildings (fewest Builders
+ * first), then repairs its damaged ones (not while under fire); with nothing to do it walks back
+ * if it strayed, else rests a while and walks on to the next stop around the zone's edge.
+ */
+function zoneWork(s: MatchState, n: Nav, u: Unit, sites: Building[], worn: Building[], crew: Record<number, number>) {
+  const z = u.post!;
+  const comp = compOf(n, 'ground', Math.floor(u.x), Math.floor(u.y));
+  const pick = (list: Building[], repair: boolean): Building | null => {
+    let best: Building | null = null, bk = Infinity;
+    for (const b of list) {
+      if (!inZone(z, b)) continue;
+      const k = (crew[b.id] ?? 0) * 1e4 + Math.hypot(b.x - u.x, b.y - u.y);
+      if (k >= bk || (repair && (crew[b.id] ?? 0) >= PRODUCTION.repairCrew) || !canReach(n, comp, b) || (repair && underFire(s, b))) continue;
+      bk = k;
+      best = b;
+    }
+    return best;
+  };
+  const job = pick(sites, false) ?? pick(worn, true);
+  if (job) {
+    give(u, { o: 'build', t: job.id }, false);
+    crew[job.id] = (crew[job.id] ?? 0) + 1;
+    z.wait = 0;
+    return;
+  }
+  if (Math.hypot(u.x - z.x, u.y - z.y) > z.r + 0.5) {
+    orderMove(s, [u], z.x, z.y, false, false);
+    return;
+  }
+  // just got here: rest first
+  if (!z.wait) { z.wait = s.tick + sec(WORK_ZONE.pause); return; }
+  if (s.tick < z.wait) return;
+  for (let k = 0; k < WORK_ZONE.points; k++) {
+    const a = (z.leg / WORK_ZONE.points) * Math.PI * 2;
+    z.leg = (z.leg + 1) % WORK_ZONE.points;
+    const x = z.x + Math.cos(a) * z.r * WORK_ZONE.edge, y = z.y + Math.sin(a) * z.r * WORK_ZONE.edge;
+    if (!passable(n, 'ground', Math.floor(x), Math.floor(y)) || compOf(n, 'ground', Math.floor(x), Math.floor(y)) !== comp) continue;
+    orderMove(s, [u], x, y, false, false);
+    z.wait = 0;
+    return;
+  }
 }
 
 /** Is an armed enemy close enough to this building that Builders can't patch it up? */

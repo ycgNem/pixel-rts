@@ -7,7 +7,7 @@ import { TICK_RATE } from '../sim/types';
 import { createMatch } from '../sim/match';
 import { createAi } from '../sim/ai';
 import { HostSession, type ChatMsg, type Session } from './session';
-import { PROTOCOL_VERSION, SNAP_EVERY, SnapshotEncoder, applySnapshot, type LobbyState, type NetMsg } from './protocol';
+import { PROTOCOL_VERSION, SNAP_EVERY, SnapshotEncoder, applySnapshot, snapshotFrame, type LobbyState, type NetMsg } from './protocol';
 import type { Transport } from './transport';
 
 export const MAX_PLAYERS = 6;
@@ -237,11 +237,13 @@ export class NetHost {
   private flush(fullFor?: string) {
     const ev = this.pending.splice(0);
     const shared = ev.filter((e) => e.e !== 'reject');
+    // the rows are worked out once for every peer
+    const frame = snapshotFrame(this.session.state);
     for (const [peer, p] of this.seats) {
       if (fullFor && peer !== fullFor) continue;
       const enc = this.enc.get(peer)!;
       const mine = ev.filter((e) => e.e === 'reject' && e.p === p);
-      const snap = enc.encode(this.session.state, mine.length ? [...shared, ...mine] : shared, peer === fullFor);
+      const snap = enc.encode(this.session.state, mine.length ? [...shared, ...mine] : shared, peer === fullFor, frame);
       this.t.send({ t: 'snap', s: snap }, peer);
     }
   }

@@ -85,6 +85,8 @@ export interface AiPlan {
 const ARMY_BALANCED = {
   rifleman: 4, rocket: 2, flaktrooper: 1, scout: 1, lighttank: 3, heavytank: 2, artillery: 2, flaktruck: 1,
   fighter: 1, bomber: 2, helicopter: 2, patrolboat: 1, destroyer: 2, submarine: 2, battleship: 2,
+  // only picked with the oil already banked (they cost 1,500)
+  megatank: 1, megaplane: 1,
 };
 
 export const AI_PLANS: Record<AiStyle, AiPlan> = {
@@ -103,7 +105,7 @@ export const AI_PLANS: Record<AiStyle, AiPlan> = {
     doctrines: ['blitz', 'massProduction', 'totalWar'],
     specHome: ['industry', 'market'],
     specFront: ['fortress', 'industry'],
-    army: { ...ARMY_BALANCED, rifleman: 5, lighttank: 4, heavytank: 3, artillery: 2 },
+    army: { ...ARMY_BALANCED, rifleman: 5, lighttank: 4, heavytank: 3, artillery: 2, megatank: 2 },
     aggression: 0.75, expand: 0, maxMines: 6, maxDerricks: 3,
   },
   expansionist: {
@@ -192,8 +194,8 @@ export const AI_SURRENDER = { after: 720, share: 0.1, wait: 60 };
 /** The AI's ace (a ground unit or aircraft) under `retreatAt` of its HP leaves the fight for home ground, where it heals. */
 export const AI_ACE = { retreatAt: 0.4 };
 
-/** Exchange use: buy oil when short, fund research with a surplus when the army is at its cap, sell spare oil when broke. */
-export const AI_TRADE = { lowOil: 150, buyOilCash: 1200, fundCash: 2500, sellOilAbove: 800, lowCash: 300 };
+/** Exchange use: buy oil when short (only when rich: it's dear), fund research with a surplus when the army is at its cap, sell spare oil when broke. */
+export const AI_TRADE = { lowOil: 150, buyOilCash: 4000, fundCash: 2500, sellOilAbove: 800, lowCash: 300 };
 
 /**
  * With more than `cash` banked, add production buildings (up to `maxProducers` in all). A unit

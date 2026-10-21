@@ -4,7 +4,35 @@ Running notes for whoever (human or AI session) picks this up next. Newest statu
 
 ## Status
 
-**2026-10-14 (latest) — rivers, busy Builders, slower tanks, oil and specialty clarity.**
+**2026-10-21 (latest) — mega units, work zones, a harsher economy, the rocket finale, lag fixes.**
+Not committed yet (the user commits and pushes). Player-facing summary: [PATCH_NOTES.md](PATCH_NOTES.md)
+("Mega units, work zones and a rocket that ends the world"); the decisions log in PLAN.md has the
+numbers.
+
+- Mega units: `megatank` / `megaplane` in `src/data/units.ts` (`limit: 3`, abilities `steamroll`
+  and `carpet`, tuned by `STEAMROLL` and `CARPET`); `unitCount` / `limitReached` in
+  `src/sim/world.ts`; `stepMegaAbilities` in `src/sim/combat.ts`. Art: `assets/units.json`
+  (PixelLab objects a69afafe… and ac8186cc…; the Mega Tank's south frame had edge debris
+  cleared by hand). PixelLab: 2,817.1 of the 2,885 allowed now used.
+- Work zones: the `zone` command, `Unit.post`, `zoneWork` in `src/sim/economy.ts`, `WORK_ZONE`;
+  the Zone button (G) and drag-to-size in `src/ui/control.ts` (`zoneFrom`, `finishZone`).
+- Sell hotkey Z (`ButtonOpts.altKeys` keeps Delete and Backspace). Economy: Buy Oil $1,250,
+  Launch Site $100,000 + 5,000 oil (the AI only builds it with the money in hand). Ground units
+  +7.5% HP and damage, Bomber damage 108.
+- Snapshots: `snapshotFrame` + move rows + `pv` / `cv` in `src/net/protocol.ts`
+  (`PROTOCOL_VERSION` 11). Measure with `node scripts/run.mjs scripts/dev/netbench.ts 25 4 medium`.
+- Terrain: `Painter.paintSteps` and the budgets at the top of `src/render/terrain.ts`. Measure
+  with `node e2e/perf.mjs` (now also prints p99 and the worst frame).
+- Rocket: `Hud.launchBanner`, the pad beacon in `WorldRenderer.building`, and
+  `src/render/finale.ts` (played by `MatchScreen.frame`). Screenshots of all of this patch's
+  visible features: `node e2e/mega.mjs <url> <outDir>`.
+- River option: `MatchSetup.river`, the River row in the setup screen.
+- Checks: 157 unit tests; e2e smoke, controls, orders, overlap pass; `npm run build` ok.
+- Open: the AI never builds a mega unit (it rarely banks 1,500 oil); give it a late-game oil
+  savings plan if mega units should show up in AI armies. At the strategic zoom, chunks that were
+  never painted show the coarse map for a few seconds (the finale's zoom-out shows it too).
+
+**2026-10-14 — rivers, busy Builders, slower tanks, oil and specialty clarity.**
 Committed and pushed to `main` (live at https://ycgnem.github.io/pixel-rts/). Player-facing summary: [PATCH_NOTES.md](PATCH_NOTES.md) ("Rivers, busy
 Builders and slower tanks"); the decisions log in PLAN.md has the numbers.
 
@@ -351,8 +379,8 @@ prints the balance data.
 ## PixelLab ledger
 
 Budget: 600 generations from the first autonomous session (`generations_used` 2094 → stop at
-2694), then another 400 for the map pass → **stop at 2885**. **Used 2530.1 after the map pass
-(2026-10-14; 355 left).** Check with `get_balance`. Every object id in use is in
+2694), then another 400 for the map pass → **stop at 2885**. **Used 2817.1 after the mega units
+(2026-10-21; 67.9 left).** Check with `get_balance`. Every object id in use is in
 `assets/units.json`, `assets/buildings.json`, `assets/terrain.json` and `assets/map.json`; the
 importers re-download from those (map art: the review-batch frames are saved in
 `assets/pixellab/map/`, re-fetch with `node scripts/pl-fetch.mjs frames <frame_0 url> <n> <dir>`).
@@ -378,6 +406,8 @@ importers re-download from those (map art: the review-batch frames are saved in
 | Map trees, conifer (16) | create_1_direction_object 48 + style pines | 0fb560ef-ecce-4133-9927-5dfb1ace04f6 | 10 | `trees-c` |
 | Mountain peaks (16) | create_1_direction_object 64 + style peaks | 8ed5c6c3-b5e8-4073-8d24-2d4c623c28c8 | 10 | `peaks` |
 | Map decorations (64) | create_1_direction_object 40, item list | 25faa62d-6a0b-47f4-aa8b-494375cdfbf0 | 15 | `decor`; beach props' sand retinted on import |
+| Mega Tank | create_8_direction_object 88 high top-down, no style | a69afafe-4048-4c68-b162-6f0bfe6393ac | 15 | south frame: edge debris cleared |
+| Mega Plane | create_8_direction_object 112 high top-down, no style | ac8186cc-2dcd-428c-b552-e3345d7794d0 | 15 | two earlier jobs styled on the Heavy Tank and Bomber were cancelled, not billed |
 
 Downloads: `node scripts/pl-fetch.mjs url <url> <file>` / `tileset <id> <dir>`. Review with
 `node scripts/contact.mjs <dir|files> --out <png> --scale 4 --snap`.

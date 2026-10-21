@@ -12,7 +12,9 @@ import type { Building, City, Command, Crate, Effect, MatchSetup, MatchState, Or
 // 8: setups can carry an Auto time limit (-1) and a Random AI style; sub armor and depth charges
 // 9: bigger maps with a river and bridges (a new terrain id): the same setup builds another map
 // 10: a 'sellUnits' command (selling troops), and the building cap
-export const PROTOCOL_VERSION = 10;
+// 11: Mega Tank and Mega Plane (new unit kinds and abilities), Builder work zones ('zone' command, a unit row field);
+//     slimmer snapshots: move rows, and players' and cities' fast-changing numbers apart from the rest
+export const PROTOCOL_VERSION = 11;
 /** the host sends a snapshot every this many ticks (20 Hz / 2 = 10 per second) */
 export const SNAP_EVERY = 2;
 
@@ -64,28 +66,43 @@ const ORDER_CODES = ['', 'move', 'amove', 'attack', 'build', 'load', 'unload', '
 /**
  * Unit row: id, kind, owner, x*100, y*100, dir*100, hp*10, flags (1 moving, 2 dug in, 4 hold),
  * vet, inside, order code, order target, ability ready tick, ability until tick, fired tick, target,
- * cargo ids, hidden-until tick.
+ * cargo ids, hidden-until tick, work zone ([x*10, y*10, r*10], or 0 for none).
  */
-export type UnitRow = [number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number[], number];
+export type UnitRow = [number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number[], number, [number, number, number] | 0];
 /** Building row: id, kind, owner, tx, ty, hp*10, built*10000, prod, rally, blocked, dep, target. */
 export type BuildingRow = [number, number, number, number, number, number, number, [number, number, number][], [number, number] | null, number, number, number];
+
+/** Move row (a unit whose only changes are these): id, x*100, y*100, dir*100, hp*10, flags, fired tick, target. */
+export type MoveRow = [number, number, number, number, number, number, number, number];
+/** A player's fast-changing numbers: index, cash, oil, science, CP, research progress, cash earned, kills, value destroyed, units lost, units built, then the exchange heat of each trade. */
+export type PlayerNums = number[];
+/** A city's fast-changing numbers: id, growth*1000, capture*1000, then each queued item's ticks left. */
+export type CityNums = number[];
 
 export interface Snapshot {
   tick: number;
   /** true: replaces everything (first snapshot, or a resync) */
   full: boolean;
   u: UnitRow[];
+  /** units that only moved, turned, got hurt or fired */
+  m: MoveRow[];
   b: BuildingRow[];
   gone: number[];
+  /** every player in full, when anything but their fast-changing numbers changed */
   players?: Player[];
+  pv?: PlayerNums[];
+  /** cities in full, when anything but their fast-changing numbers changed */
   cities?: City[];
+  cv?: CityNums[];
   shots: [number, number, number, number, number, number, number, number, string][];
   effects?: Effect[];
   crates?: Crate[];
   weather?: Weather;
-  misc?: { supremacy: Record<number, number>; launch: MatchState['launch']; coalition: number; over: MatchState['over']; navVer: number; nextId: number; rng: number; contract: MatchState['contract']; nextContract: number };
+  misc?: Misc;
   ev: SimEvent[];
 }
+
+type Misc = { supremacy: Record<number, number>; launch: MatchState['launch']; coalition: number; over: MatchState['over']; navVer: number; nextId: number; rng: number; contract: MatchState['contract']; nextContract: number };
 
 function orderCode(o: Order | null): [number, number] {
   if (!o) return [0, 0];
@@ -104,8 +121,17 @@ function unitRow(u: Unit): UnitRow {
   return [
     u.id, UNIT_INDEX.get(u.kind)!, u.owner, Math.round(u.x * 100), Math.round(u.y * 100), Math.round(u.dir * 100), Math.round(u.hp * 10),
     (u.mv ? 1 : 0) | (u.dug ? 2 : 0) | (u.hold ? 4 : 0), u.vet, u.inside, oc, ot, u.abReady, u.abUntil, u.fired, u.tgt, u.cargo, u.hide,
+    u.post ? [Math.round(u.post.x * 10), Math.round(u.post.y * 10), Math.round(u.post.r * 10)] : 0,
   ];
 }
+
+/** the unit row fields a move row carries */
+const MOVE_FIELDS = [3, 4, 5, 6, 7, 14, 15];
+/** the rest: if any of these changed the unit needs a full row */
+const FULL_FIELDS = [1, 2, 8, 9, 10, 11, 12, 13, 16, 17, 18];
+
+const sameField = (a: unknown, b: unknown) =>
+  a === b || (Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v, i) => v === b[i]));
 
 function buildingRow(b: Building): BuildingRow {
   return [
@@ -114,11 +140,82 @@ function buildingRow(b: Building): BuildingRow {
   ];
 }
 
+const r2 = (v: number) => Math.round(v * 100) / 100;
+const TRADES = ['buyOil', 'sellOil', 'fundResearch'] as const;
+
+function playerNums(p: Player): PlayerNums {
+  const st = p.stats;
+  return [p.id, r2(p.cash), r2(p.oil), r2(p.science), r2(p.cp), r2(p.research.prog), r2(st.cashEarned), st.kills, r2(st.valueDestroyed), st.unitsLost, st.unitsBuilt, ...TRADES.map((k) => r2(p.market[k] ?? 0))];
+}
+
+/** A player without the numbers that PlayerNums carries (for spotting other changes). */
+function playerRest(p: Player): string {
+  return JSON.stringify({
+    ...p, cash: 0, oil: 0, science: 0, cp: 0, market: 0, research: { ...p.research, prog: 0 },
+    stats: { ...p.stats, cashEarned: 0, kills: 0, valueDestroyed: 0, unitsLost: 0, unitsBuilt: 0 },
+  });
+}
+
+function cityNums(c: City): CityNums {
+  return [c.id, Math.round(c.grow * 1000), Math.round(c.cap * 1000), ...c.prod.map((it) => Math.round(it.left))];
+}
+
+function cityRest(c: City): string {
+  // weapon cooldowns are the host's business
+  return JSON.stringify({ ...c, grow: 0, cap: 0, cd: 0, prod: c.prod.map((it) => [it.kind, it.total]) });
+}
+
+/**
+ * Everything the host would send this tick, worked out once and shared by every peer's encoder
+ * (with three peers, rows are built and compared once instead of three times).
+ */
+export interface SnapshotFrame {
+  units: Map<number, UnitRow>;
+  buildings: Map<number, [BuildingRow, string]>;
+  pv: PlayerNums[];
+  pvKey: string[];
+  pRest: string[];
+  cv: CityNums[];
+  cvKey: string[];
+  cRest: string[];
+  shots: Snapshot['shots'];
+  effects: string;
+  crates: string;
+  weather: string;
+  misc: Misc;
+  miscKey: string;
+}
+
+export function snapshotFrame(s: MatchState): SnapshotFrame {
+  const units = new Map<number, UnitRow>(), buildings = new Map<number, [BuildingRow, string]>();
+  for (const id in s.ents) {
+    const e = s.ents[id];
+    if (e.t === 'u') units.set(e.id, unitRow(e));
+    else {
+      const row = buildingRow(e);
+      buildings.set(e.id, [row, JSON.stringify(row)]);
+    }
+  }
+  const pv = s.players.map(playerNums), cv = s.cities.map(cityNums);
+  const misc: Misc = { supremacy: s.supremacy, launch: s.launch, coalition: s.coalition, over: s.over, navVer: s.navVer, nextId: s.nextId, rng: s.rng, contract: s.contract, nextContract: s.nextContract };
+  return {
+    units, buildings,
+    pv, pvKey: pv.map((r) => r.join()), pRest: s.players.map(playerRest),
+    cv, cvKey: cv.map((r) => r.join()), cRest: s.cities.map(cityRest),
+    shots: s.shots.map((sh) => [sh.x0, sh.y0, sh.x, sh.y, sh.t0, sh.land, sh.t, sh.owner, sh.cls]),
+    effects: JSON.stringify(s.effects), crates: JSON.stringify(s.crates), weather: JSON.stringify(s.weather),
+    misc, miscKey: JSON.stringify(misc),
+  };
+}
+
 /** Host side: remembers what was sent last, and builds the next snapshot. */
 export class SnapshotEncoder {
-  private rows = new Map<number, string>();
-  private lastPlayers = '';
-  private lastCities = new Map<number, string>();
+  private units = new Map<number, UnitRow>();
+  private buildings = new Map<number, string>();
+  private pvKey: string[] = [];
+  private pRest: string[] = [];
+  private cvKey: string[] = [];
+  private cRest: string[] = [];
   private lastEffects = '';
   private lastCrates = '';
   private lastWeather = '';
@@ -128,47 +225,49 @@ export class SnapshotEncoder {
   /** Forget everything (the next snapshot is full). */
   reset() {
     this.sent = false;
-    this.rows.clear();
-    this.lastPlayers = '';
-    this.lastCities.clear();
+    this.units.clear();
+    this.buildings.clear();
+    this.pvKey = [];
+    this.pRest = [];
+    this.cvKey = [];
+    this.cRest = [];
     this.lastEffects = this.lastCrates = this.lastWeather = this.lastMisc = '';
   }
 
-  encode(s: MatchState, ev: SimEvent[], full = false): Snapshot {
+  /** The snapshot for this peer. `frame` is this tick's shared work (see snapshotFrame). */
+  encode(s: MatchState, ev: SimEvent[], full = false, frame = snapshotFrame(s)): Snapshot {
     if (full) this.reset();
     full = !this.sent;
     this.sent = true;
-    const snap: Snapshot = { tick: s.tick, full, u: [], b: [], gone: [], shots: [], ev };
-    const seen = new Set<number>();
-    for (const id in s.ents) {
-      const e = s.ents[id];
-      seen.add(e.id);
-      const row = e.t === 'u' ? unitRow(e) : buildingRow(e);
-      const key = JSON.stringify(row);
-      if (this.rows.get(e.id) === key) continue;
-      this.rows.set(e.id, key);
-      if (e.t === 'u') snap.u.push(row as UnitRow);
-      else snap.b.push(row as BuildingRow);
+    const snap: Snapshot = { tick: s.tick, full, u: [], m: [], b: [], gone: [], shots: frame.shots, ev };
+    for (const [id, row] of frame.units) {
+      const last = this.units.get(id);
+      if (last && FULL_FIELDS.every((i) => sameField(last[i], row[i]))) {
+        if (!MOVE_FIELDS.every((i) => last[i] === row[i])) snap.m.push([id, row[3], row[4], row[5], row[6], row[7], row[14], row[15]]);
+      } else snap.u.push(row);
+      this.units.set(id, row);
     }
-    for (const id of this.rows.keys()) if (!seen.has(id)) { snap.gone.push(id); this.rows.delete(id); }
-    const players = JSON.stringify(s.players);
-    if (players !== this.lastPlayers) { snap.players = s.players; this.lastPlayers = players; }
-    const cities: City[] = [];
-    for (const c of s.cities) {
-      const k = JSON.stringify(c);
-      if (this.lastCities.get(c.id) !== k) { cities.push(c); this.lastCities.set(c.id, k); }
+    for (const [id, [row, key]] of frame.buildings) {
+      if (this.buildings.get(id) === key) continue;
+      this.buildings.set(id, key);
+      snap.b.push(row);
     }
-    if (cities.length) snap.cities = cities;
-    snap.shots = s.shots.map((sh) => [sh.x0, sh.y0, sh.x, sh.y, sh.t0, sh.land, sh.t, sh.owner, sh.cls]);
-    const effects = JSON.stringify(s.effects);
-    if (effects !== this.lastEffects) { snap.effects = s.effects; this.lastEffects = effects; }
-    const crates = JSON.stringify(s.crates);
-    if (crates !== this.lastCrates) { snap.crates = s.crates; this.lastCrates = crates; }
-    const weather = JSON.stringify(s.weather);
-    if (weather !== this.lastWeather) { snap.weather = s.weather; this.lastWeather = weather; }
-    const misc = { supremacy: s.supremacy, launch: s.launch, coalition: s.coalition, over: s.over, navVer: s.navVer, nextId: s.nextId, rng: s.rng, contract: s.contract, nextContract: s.nextContract };
-    const mk = JSON.stringify(misc);
-    if (mk !== this.lastMisc) { snap.misc = misc; this.lastMisc = mk; }
+    for (const id of this.units.keys()) if (!frame.units.has(id)) { snap.gone.push(id); this.units.delete(id); }
+    for (const id of this.buildings.keys()) if (!frame.buildings.has(id)) { snap.gone.push(id); this.buildings.delete(id); }
+    if (frame.pRest.some((k, i) => k !== this.pRest[i]) || frame.pRest.length !== this.pRest.length) {
+      snap.players = s.players;
+      this.pRest = frame.pRest;
+    }
+    const pv = frame.pv.filter((_, i) => frame.pvKey[i] !== this.pvKey[i]);
+    if (pv.length) { snap.pv = pv; this.pvKey = frame.pvKey; }
+    const cities = s.cities.filter((_, i) => frame.cRest[i] !== this.cRest[i]);
+    if (cities.length) { snap.cities = cities; this.cRest = frame.cRest; }
+    const cv = frame.cv.filter((_, i) => frame.cvKey[i] !== this.cvKey[i]);
+    if (cv.length) { snap.cv = cv; this.cvKey = frame.cvKey; }
+    if (frame.effects !== this.lastEffects) { snap.effects = s.effects; this.lastEffects = frame.effects; }
+    if (frame.crates !== this.lastCrates) { snap.crates = s.crates; this.lastCrates = frame.crates; }
+    if (frame.weather !== this.lastWeather) { snap.weather = s.weather; this.lastWeather = frame.weather; }
+    if (frame.miscKey !== this.lastMisc) { snap.misc = frame.misc; this.lastMisc = frame.miscKey; }
     return snap;
   }
 }
@@ -199,7 +298,7 @@ export function applySnapshot(s: MatchState, snap: Snapshot): Map<number, [numbe
   if (snap.full) s.ents = {};
   for (const id of snap.gone) delete s.ents[id];
   for (const r of snap.u) {
-    const [id, k, owner, x, y, dir, hp, flags, vet, inside, oc, ot, abReady, abUntil, fired, tgt, cargo, hide] = r;
+    const [id, k, owner, x, y, dir, hp, flags, vet, inside, oc, ot, abReady, abUntil, fired, tgt, cargo, hide, post] = r;
     let u = s.ents[id] as Unit | undefined;
     if (!u || u.t !== 'u') {
       u = {
@@ -226,6 +325,8 @@ export function applySnapshot(s: MatchState, snap: Snapshot): Map<number, [numbe
     u.hide = hide;
     u.tgt = tgt;
     u.cargo = cargo;
+    if (post) u.post = { x: post[0] / 10, y: post[1] / 10, r: post[2] / 10, leg: 0, wait: 0 };
+    else delete u.post;
   }
   for (const r of snap.b) {
     const [id, k, owner, tx, ty, hp, built, prod, rally, blocked, dep, tgt] = r;
@@ -243,8 +344,34 @@ export function applySnapshot(s: MatchState, snap: Snapshot): Map<number, [numbe
     b.blocked = !!blocked;
     b.tgt = tgt;
   }
+  for (const r of snap.m ?? []) {
+    const u = s.ents[r[0]];
+    if (!u || u.t !== 'u') continue;
+    u.x = r[1] / 100;
+    u.y = r[2] / 100;
+    u.dir = r[3] / 100;
+    u.hp = r[4] / 10;
+    u.mv = !!(r[5] & 1);
+    u.dug = !!(r[5] & 2);
+    u.hold = !!(r[5] & 4);
+    u.fired = r[6];
+    u.tgt = r[7];
+  }
   if (snap.players) s.players = snap.players;
+  for (const r of snap.pv ?? []) {
+    const p = s.players[r[0]];
+    if (!p) continue;
+    [, p.cash, p.oil, p.science, p.cp, p.research.prog, p.stats.cashEarned, p.stats.kills, p.stats.valueDestroyed, p.stats.unitsLost, p.stats.unitsBuilt] = r;
+    TRADES.forEach((k, i) => { if (r[11 + i]) p.market[k] = r[11 + i]; else delete p.market[k]; });
+  }
   if (snap.cities) for (const c of snap.cities) s.cities[c.id] = c;
+  for (const r of snap.cv ?? []) {
+    const c = s.cities[r[0]];
+    if (!c) continue;
+    c.grow = r[1] / 1000;
+    c.cap = r[2] / 1000;
+    c.prod.forEach((it, i) => { if (r[3 + i] !== undefined) it.left = r[3 + i]; });
+  }
   s.shots = snap.shots.map(([x0, y0, x, y, t0, land, t, owner, cls]): Shot => ({ x0, y0, x, y, t0, land, t, owner, cls, src: 0, kind: '', w: 0, dmg: 0, splash: 0, hits: [] }));
   if (snap.effects) s.effects = snap.effects;
   if (snap.crates) s.crates = snap.crates;

@@ -36,6 +36,8 @@ export interface MatchSetup {
   insurgency?: boolean;
   /** neutral cities post public jobs (on unless false) */
   contracts?: boolean;
+  /** a river with two bridges across Pangaea and Lakes maps (on unless false) */
+  river?: boolean;
 }
 
 export interface Deposit { kind: 'ore' | 'oil'; x: number; y: number; rich?: boolean }
@@ -166,11 +168,16 @@ export interface Unit extends EntBase {
   gy: number;
   /** moving this tick (for render) */
   mv: boolean;
+  /** a Builder's work zone (WORK_ZONE), if it has one */
+  post?: WorkZone;
   /** internal: ticks without progress, best distance so far, group of the last finished move */
   _stuck: number;
   _best: number;
   _grp: number;
 }
+
+/** A Builder's work zone: center and radius in tiles, the edge stop it walks to next, and the tick it may set off. */
+export interface WorkZone { x: number; y: number; r: number; leg: number; wait: number }
 
 export interface ProdItem { kind: string; left: number; total: number }
 
@@ -325,6 +332,8 @@ export type Command =
   | { t: 'stop'; p: number; ids: number[] }
   | { t: 'hold'; p: number; ids: number[] }
   | { t: 'patrol'; p: number; ids: number[]; x: number; y: number }
+  /** give Builders a work zone (r = 0 frees them) */
+  | { t: 'zone'; p: number; ids: number[]; x: number; y: number; r: number }
   | { t: 'build'; p: number; ids: number[]; kind: string; tx: number; ty: number; q?: boolean }
   | { t: 'assist'; p: number; ids: number[]; target: number; q?: boolean }
   | { t: 'train'; p: number; at: number; city?: boolean; kind: string; n: number }

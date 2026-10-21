@@ -95,7 +95,7 @@ export function generateMap(setup: MatchSetup): GameMap {
   };
 
   // ---- 1c. a river with two bridges across the land-war maps
-  if (n > 1 && MAPGEN.river.on.includes(type)) carveRiver();
+  if (n > 1 && setup.river !== false && MAPGEN.river.on.includes(type)) carveRiver();
 
   // ---- 2. start positions on a ring, cleared and flattened
   const starts: { x: number; y: number }[] = [];

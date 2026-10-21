@@ -49,6 +49,15 @@ export const PRODUCTION = {
 };
 
 /**
+ * Work zones (our twist on roaming crews): a Builder given a zone (the Zone order: click a spot, or
+ * drag out its size) builds and repairs only your buildings inside it, walks back when it strays,
+ * and with nothing to do walks the zone's edge: `points` stops at `edge` of the radius, resting
+ * `pause` seconds at each. A plain click makes a zone of radius `r` tiles; a drag sets the radius, `min` to `max`.
+ * Move and Stop orders free the Builder; build orders keep the zone (it comes back afterwards).
+ */
+export const WORK_ZONE = { r: 8, min: 3, max: 24, edge: 0.8, points: 6, pause: 3 };
+
+/**
  * How far apart units keep. Infantry keep `infantry` times their touching distance from other
  * infantry, so squads read as squads instead of one blob; `maxStep` caps the push per tick (tiles).
  * A unit gives up a move after 6 s without getting closer along its path; while it is pressed
@@ -177,7 +186,8 @@ export const EXCHANGE = {
   heat: 0.1,
   cool: 0.3,
   trades: {
-    buyOil: { name: 'Buy Oil', payWith: 'cash', pay: 250, gets: 'oil', get: 100, hotkey: 'KeyO', desc: 'Trade cash for oil.' },
+    // oil is scarce on purpose: buying it costs five times what it once did, so Derricks are the way
+    buyOil: { name: 'Buy Oil', payWith: 'cash', pay: 1250, gets: 'oil', get: 100, hotkey: 'KeyO', desc: 'Trade cash for oil. Dear: pumping your own is far cheaper.' },
     sellOil: { name: 'Sell Oil', payWith: 'oil', pay: 100, gets: 'cash', get: 150, hotkey: 'KeyL', desc: 'Trade spare oil for cash.' },
     fundResearch: { name: 'Fund Research', payWith: 'cash', pay: 400, gets: 'science', get: 100, needs: 'lab', needsName: 'Lab', hotkey: 'KeyJ', desc: 'Pay scientists to work overtime: cash for science.' },
   } as Record<TradeId, TradeDef>,

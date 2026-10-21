@@ -122,6 +122,19 @@ describe('map generator', () => {
     for (const mapType of ['continents', 'islands'] as const) expect(generateMap(setup({ seed: 3, mapType }, 4)).bridges).toBeUndefined();
   });
 
+  it('with the river turned off: no river, no bridges, and every start still reached by land (10 seeds)', () => {
+    for (const mapType of ['pangaea', 'lakes'] as const)
+      for (let seed = 1; seed <= 10; seed++) {
+        const n = 2 + (seed % 5);
+        const m = generateMap(setup({ seed, mapType, mapSize: n > 4 ? 'large' : 'medium', river: false }, n));
+        const tag = `${mapType} seed ${seed} ${n}p`;
+        expect(m.bridges ?? [], tag).toHaveLength(0);
+        expect(m.terrain.includes(T.BRIDGE), tag).toBe(false);
+        const all = groundComponent(m, m.starts[0].x, m.starts[0].y);
+        for (const st of m.starts) expect(all[st.y * m.w + st.x], tag).toBe(1);
+      }
+  });
+
   it('puts every start on its own landmass with two cities, two ore and an oil (islands, continents; 50 seeds)', () => {
     for (const mapType of ['islands', 'continents'] as const)
       for (let seed = 1; seed <= 50; seed++) {

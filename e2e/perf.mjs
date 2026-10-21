@@ -54,7 +54,7 @@ async function measure(name, setup, ffMinutes, seconds, move) {
     return {
       units: Object.values(s.ents).filter((e) => e.t === 'u').length, tick: s.tick, over: !!s.over,
       fps: +(1000 / avg(gaps.slice(5))).toFixed(1), gapP95: +q(gaps.slice(5), 0.95).toFixed(1),
-      workAvg: +avg(work).toFixed(2), workP95: +q(work, 0.95).toFixed(2),
+      workAvg: +avg(work).toFixed(2), workP95: +q(work, 0.95).toFixed(2), workP99: +q(work, 0.99).toFixed(2), workMax: +Math.max(...work).toFixed(1),
     };
   }, { setup, ffMinutes, seconds, move });
   console.log(name, JSON.stringify(r));

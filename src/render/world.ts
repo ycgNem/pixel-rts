@@ -602,10 +602,21 @@ export class WorldRenderer {
       ctx.stroke();
       ctx.setLineDash([]);
     }
-    if (s.launch?.id === b.id) {
+    if (s.launch?.id === b.id && !s.over) {
       const left = Math.max(0, (s.launch.done - s.tick) / TICK_RATE);
       const t = `LAUNCH ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
-      drawText(ctx, t, Math.round(x + fw / 2 - (textWidth(t) * v.ui) / 2), y - fh - 16 * v.ui, '#f9c22b', v.ui, '#1a1420');
+      // a beacon: rings pulsing out from the pad (faster in the last half minute), and a big clock
+      const fast = left < 30, period = fast ? 0.5 : 1.2;
+      for (const off of [0, 0.5]) {
+        const k = ((v.time / period + off) % 1);
+        ctx.strokeStyle = rgba(fast ? C.red : C.gold, 1 - k);
+        ctx.lineWidth = Math.max(1, Math.round(2 * z));
+        ctx.beginPath();
+        ctx.arc(Math.round(x + fw / 2), Math.round(y - fh / 2), fw * (0.55 + k * 0.9), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      const big = v.ui * 2;
+      drawText(ctx, t, Math.round(x + fw / 2 - (textWidth(t) * big) / 2), y - fh - 22 * v.ui, fast && Math.floor(v.time * 4) % 2 ? '#e83b3b' : '#f9c22b', big, '#1a1420');
     }
   }
 

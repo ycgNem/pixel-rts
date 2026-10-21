@@ -162,6 +162,26 @@ export function unitCost(s: MatchState, p: number, kind: string): { cash: number
   return { cash: Math.round(d.cost.cash * m), oil: Math.round(d.cost.oil * m) };
 }
 
+/** How many `kind` units player `p` has, counting ones being trained (for UnitDef.limit). */
+export function unitCount(s: MatchState, p: number, kind: string): number {
+  let n = 0;
+  for (const id in s.ents) {
+    const e = s.ents[id];
+    if (e.owner !== p) continue;
+    if (e.t === 'u') { if (e.kind === kind) n++; }
+    else for (const it of e.prod) if (it.kind === kind) n++;
+  }
+  for (const c of s.cities) if (c.owner === p) for (const it of c.prod) if (it.kind === kind) n++;
+  return n;
+}
+
+/** Why player `p` can't order another `kind` because of its limit (null = they can). */
+export function limitReached(s: MatchState, p: number, kind: string): string | null {
+  const lim = UNITS[kind].limit;
+  if (!lim || unitCount(s, p, kind) < lim) return null;
+  return `at most ${lim} ${UNITS[kind].name}s at a time`;
+}
+
 /**
  * What selling unit `u` pays back (PRODUCTION.unitSellRefund of its cost, times its share of full
  * HP), or null when it can't be sold: units nobody trains (merchant ships) and loaded transports.

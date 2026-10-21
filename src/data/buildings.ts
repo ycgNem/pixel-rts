@@ -89,7 +89,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     tech: 'radar', hotkey: 'R', detects: true, desc: 'Sees far, ignores night. Detects submarines.',
   },
   launch: {
-    id: 'launch', name: 'Launch Site', w: 5, h: 5, hp: 4000, cost: { cash: 3000, oil: 500 }, buildTime: 90, sight: 6,
+    id: 'launch', name: 'Launch Site', w: 5, h: 5, hp: 4000, cost: { cash: 100000, oil: 5000 }, buildTime: 90, sight: 6,
     tech: 'spaceProgram', hotkey: 'X', desc: 'Survive the countdown to win a science victory.',
   },
 };

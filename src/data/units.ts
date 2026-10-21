@@ -21,7 +21,7 @@ export interface WeaponDef {
 export interface Cost { cash: number; oil: number }
 
 export type UnitClass = 'infantry' | 'vehicle' | 'aircraft' | 'ship';
-export type AbilityId = 'digIn' | 'flare' | 'smoke' | 'barrage' | 'afterburner' | 'sonar';
+export type AbilityId = 'digIn' | 'flare' | 'smoke' | 'barrage' | 'afterburner' | 'sonar' | 'steamroll' | 'carpet';
 
 export interface UnitDef {
   id: string;
@@ -53,6 +53,8 @@ export interface UnitDef {
   /** reveals stealth units within its sight */
   detects?: boolean;
   ability?: AbilityId;
+  /** most of these a player may have at once, counting ones in training */
+  limit?: number;
   hotkey: string;
   desc: string;
 }
@@ -64,71 +66,83 @@ const ALL: Layer[] = ['ground', 'naval', 'air'];
 export const UNITS: Record<string, UnitDef> = {
   builder: {
     id: 'builder', name: 'Builder', cls: 'infantry', armor: 'infantry', layer: 'ground',
-    hp: 60, speed: 1.7, sight: 6, radius: 0.22, cost: { cash: 100, oil: 0 }, supply: 1, buildTime: 10,
+    hp: 65, speed: 1.7, sight: 6, radius: 0.22, cost: { cash: 100, oil: 0 }, supply: 1, buildTime: 10,
     at: ['hq'], weapons: [], builds: true, hotkey: 'B',
     desc: 'Builds and repairs. Unarmed.',
   },
   rifleman: {
     id: 'rifleman', name: 'Rifleman', cls: 'infantry', armor: 'infantry', layer: 'ground',
-    hp: 80, speed: 1.5, sight: 7, radius: 0.22, cost: { cash: 60, oil: 0 }, supply: 1, buildTime: 8,
+    hp: 86, speed: 1.5, sight: 7, radius: 0.22, cost: { cash: 60, oil: 0 }, supply: 1, buildTime: 8,
     at: ['barracks', 'city'], captures: true, ability: 'digIn', hotkey: 'R',
-    weapons: [{ cls: 'gun', dmg: 8, range: 4.5, cd: 1.0, hits: G }],
+    weapons: [{ cls: 'gun', dmg: 8.6, range: 4.5, cd: 1.0, hits: G }],
     desc: 'Cheap all-rounder. Captures cities. Can dig in.',
   },
   rocket: {
     id: 'rocket', name: 'Rocket Trooper', cls: 'infantry', armor: 'infantry', layer: 'ground',
-    hp: 70, speed: 1.35, sight: 7, radius: 0.22, cost: { cash: 130, oil: 0 }, supply: 1, buildTime: 10,
+    hp: 75, speed: 1.35, sight: 7, radius: 0.22, cost: { cash: 130, oil: 0 }, supply: 1, buildTime: 10,
     at: ['barracks'], tech: 'rocketry', captures: true, hotkey: 'T',
-    weapons: [{ cls: 'rocket', dmg: 24, range: 5, cd: 2.2, hits: G, speed: 12 }],
+    weapons: [{ cls: 'rocket', dmg: 25.8, range: 5, cd: 2.2, hits: G, speed: 12 }],
     desc: 'Anti-vehicle infantry. Slow to fire.',
   },
   flaktrooper: {
     id: 'flaktrooper', name: 'Flak Trooper', cls: 'infantry', armor: 'infantry', layer: 'ground',
-    hp: 70, speed: 1.35, sight: 8, radius: 0.22, cost: { cash: 100, oil: 0 }, supply: 1, buildTime: 10,
+    hp: 75, speed: 1.35, sight: 8, radius: 0.22, cost: { cash: 100, oil: 0 }, supply: 1, buildTime: 10,
     at: ['barracks'], tech: 'antiAir', captures: true, hotkey: 'F',
-    weapons: [{ cls: 'flak', dmg: 14, range: 6, cd: 1.2, hits: ALL }],
+    weapons: [{ cls: 'flak', dmg: 15.1, range: 6, cd: 1.2, hits: ALL }],
     desc: 'Anti-air infantry.',
   },
   scout: {
     id: 'scout', name: 'Scout Car', cls: 'vehicle', armor: 'light', layer: 'ground',
-    hp: 140, speed: 3.4, sight: 10, radius: 0.32, cost: { cash: 150, oil: 10 }, supply: 1, buildTime: 10,
+    hp: 151, speed: 3.4, sight: 10, radius: 0.32, cost: { cash: 150, oil: 10 }, supply: 1, buildTime: 10,
     at: ['factory'], ability: 'flare', hotkey: 'C',
-    weapons: [{ cls: 'gun', dmg: 9, range: 5, cd: 0.6, hits: G }],
+    weapons: [{ cls: 'gun', dmg: 9.7, range: 5, cd: 0.6, hits: G }],
     desc: 'Fast, sees far. Fires a recon flare.',
   },
   lighttank: {
     id: 'lighttank', name: 'Light Tank', cls: 'vehicle', armor: 'heavy', layer: 'ground',
-    hp: 380, speed: 2.2, sight: 8, radius: 0.4, cost: { cash: 300, oil: 55 }, supply: 2, buildTime: 18,
+    hp: 409, speed: 2.2, sight: 8, radius: 0.4, cost: { cash: 300, oil: 55 }, supply: 2, buildTime: 18,
     at: ['factory'], ability: 'smoke', hotkey: 'L',
     weapons: [
-      { cls: 'cannon', dmg: 34, range: 5.5, cd: 1.8, hits: G, speed: 18, splash: 0.5 },
-      { cls: 'gun', dmg: 4, range: 4.5, cd: 0.6, hits: G },
+      { cls: 'cannon', dmg: 36.6, range: 5.5, cd: 1.8, hits: G, speed: 18, splash: 0.5 },
+      { cls: 'gun', dmg: 4.3, range: 4.5, cd: 0.6, hits: G },
     ],
     desc: 'Main battle unit early on. Can pop smoke.',
   },
   heavytank: {
     id: 'heavytank', name: 'Heavy Tank', cls: 'vehicle', armor: 'heavy', layer: 'ground',
-    hp: 820, speed: 1.6, sight: 8, radius: 0.48, cost: { cash: 500, oil: 100 }, supply: 3, buildTime: 22,
+    hp: 882, speed: 1.6, sight: 8, radius: 0.48, cost: { cash: 500, oil: 100 }, supply: 3, buildTime: 22,
     at: ['factory'], tech: 'heavyArmor', hotkey: 'H',
     weapons: [
-      { cls: 'cannon', dmg: 60, range: 6, cd: 2.4, hits: G, speed: 18, splash: 0.8 },
-      { cls: 'gun', dmg: 6, range: 4.5, cd: 0.6, hits: G },
+      { cls: 'cannon', dmg: 64.5, range: 6, cd: 2.4, hits: G, speed: 18, splash: 0.8 },
+      { cls: 'gun', dmg: 6.5, range: 4.5, cd: 0.6, hits: G },
     ],
     desc: 'Breaks defensive lines.',
   },
   artillery: {
     id: 'artillery', name: 'Artillery', cls: 'vehicle', armor: 'light', layer: 'ground',
-    hp: 200, speed: 1.6, sight: 7, radius: 0.44, cost: { cash: 400, oil: 70 }, supply: 3, buildTime: 20,
+    hp: 215, speed: 1.6, sight: 7, radius: 0.44, cost: { cash: 400, oil: 70 }, supply: 3, buildTime: 20,
     at: ['factory'], tech: 'artillery', ability: 'barrage', hotkey: 'R',
-    weapons: [{ cls: 'shell', dmg: 55, range: 12, minRange: 3, cd: 4, hits: G, splash: 1.2, speed: 8 }],
+    weapons: [{ cls: 'shell', dmg: 59.1, range: 12, minRange: 3, cd: 4, hits: G, splash: 1.2, speed: 8 }],
     desc: 'Long range, splash damage, minimum range. Fragile.',
   },
   flaktruck: {
     id: 'flaktruck', name: 'Flak Truck', cls: 'vehicle', armor: 'light', layer: 'ground',
-    hp: 220, speed: 2.6, sight: 9, radius: 0.38, cost: { cash: 250, oil: 30 }, supply: 2, buildTime: 14,
+    hp: 237, speed: 2.6, sight: 9, radius: 0.38, cost: { cash: 250, oil: 30 }, supply: 2, buildTime: 14,
     at: ['factory'], tech: 'antiAir', hotkey: 'K',
-    weapons: [{ cls: 'flak', dmg: 16, range: 7, cd: 0.9, hits: ALL }],
+    weapons: [{ cls: 'flak', dmg: 17.2, range: 7, cd: 0.9, hits: ALL }],
     desc: 'Mobile anti-air.',
+  },
+  // the mega units: a match-winning lump of oil each, and only `limit` at a time
+  megatank: {
+    id: 'megatank', name: 'Mega Tank', cls: 'vehicle', armor: 'heavy', layer: 'ground',
+    hp: 3440, speed: 1.15, sight: 9, radius: 0.9, cost: { cash: 1000, oil: 1500 }, supply: 8, buildTime: 60,
+    at: ['factory'], tech: 'compositeArmor', limit: 3, ability: 'steamroll', hotkey: 'M',
+    weapons: [
+      { cls: 'cannon', dmg: 150.5, range: 7, cd: 2.6, hits: G, speed: 16, splash: 1.3 },
+      { cls: 'gun', dmg: 10.8, range: 5, cd: 0.35, hits: G },
+      { cls: 'flak', dmg: 12.9, range: 6, cd: 1, hits: AIR },
+    ],
+    desc: 'A land dreadnought: triple cannon, machine guns and flak. Steamrolls infantry. 3 at most.',
   },
   fighter: {
     id: 'fighter', name: 'Fighter', cls: 'aircraft', armor: 'air', layer: 'air',
@@ -141,7 +155,7 @@ export const UNITS: Record<string, UnitDef> = {
     id: 'bomber', name: 'Bomber', cls: 'aircraft', armor: 'air', layer: 'air',
     hp: 420, speed: 3.6, sight: 9, radius: 0.6, cost: { cash: 600, oil: 120 }, supply: 4, buildTime: 26,
     at: ['airfield'], tech: 'bombers', hotkey: 'B',
-    weapons: [{ cls: 'bomb', dmg: 120, range: 1.5, cd: 5, hits: G, splash: 1.6, speed: 6 }],
+    weapons: [{ cls: 'bomb', dmg: 108, range: 1.5, cd: 5, hits: G, splash: 1.6, speed: 6 }],
     desc: 'Heavy damage to ground targets and buildings. Cannot hit aircraft.',
   },
   helicopter: {
@@ -150,6 +164,16 @@ export const UNITS: Record<string, UnitDef> = {
     at: ['airfield'], tech: 'rotorcraft', hotkey: 'H',
     weapons: [{ cls: 'rocket', dmg: 28, range: 6, cd: 2, hits: G, speed: 14 }],
     desc: 'Anti-armor gunship. Can hover.',
+  },
+  megaplane: {
+    id: 'megaplane', name: 'Mega Plane', cls: 'aircraft', armor: 'air', layer: 'air',
+    hp: 2000, speed: 2.8, sight: 10, radius: 1, cost: { cash: 1000, oil: 1500 }, supply: 8, buildTime: 60,
+    at: ['airfield'], tech: 'jetEngines', limit: 3, ability: 'carpet', hotkey: 'M',
+    weapons: [
+      { cls: 'bomb', dmg: 200, range: 1.5, cd: 4, hits: G, splash: 2, speed: 6 },
+      { cls: 'missile', dmg: 22, range: 6, cd: 1.2, hits: AIR, speed: 22 },
+    ],
+    desc: 'A flying wing: huge bombs, a carpet-bombing run, and missiles for fighters. 3 at most.',
   },
   patrolboat: {
     id: 'patrolboat', name: 'Patrol Boat', cls: 'ship', armor: 'ship', layer: 'naval',
@@ -208,4 +232,11 @@ export const ABILITIES: Record<AbilityId, { name: string; cooldown: number; dura
   barrage: { name: 'Barrage', cooldown: 45, duration: 3, desc: 'Fire 4 shells in quick succession.' },
   afterburner: { name: 'Afterburner', cooldown: 25, duration: 5, desc: '+80% speed for 5 s.' },
   sonar: { name: 'Sonar Ping', cooldown: 30, duration: 8, radius: 14, desc: 'Reveal submarines in a wide area.' },
+  steamroll: { name: 'Steamroller', cooldown: 35, duration: 8, desc: 'For 8 s: 40% faster, and enemy infantry under its tracks are crushed.' },
+  carpet: { name: 'Carpet Bomb', cooldown: 40, duration: 4, desc: 'For 4 s, bombs fall on the ground below it all along its flight path.' },
 };
+
+/** Steamroller: speed multiplier, and damage a second to enemy infantry within the tank's radius plus `reach` tiles. */
+export const STEAMROLL = { speed: 1.4, dps: 90, reach: 0.4 };
+/** Carpet Bomb: a bomb every `every` seconds below the plane, landing after `fall` seconds. */
+export const CARPET = { every: 0.4, dmg: 90, splash: 1.6, fall: 0.5 };

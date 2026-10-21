@@ -1,5 +1,5 @@
 // Combat: picking targets, firing weapons, projectiles in flight, splash.
-import { UNITS, type WeaponDef } from '../data/units';
+import { CARPET, STEAMROLL, UNITS, type WeaponDef } from '../data/units';
 import { BUILDINGS } from '../data/buildings';
 import { DAMAGE, type Layer } from '../data/damage';
 import { COMBAT } from '../data/rules';
@@ -232,7 +232,38 @@ export function land(s: MatchState, x: number, y: number, dmg: number, splash: n
   });
 }
 
-/** Fortress cities shoot at nearby enemies. */
+/**
+ * The mega units' abilities while they run: a Steamroller crushes enemy infantry under the Mega
+ * Tank's tracks, and a Carpet Bomb drops a bomb below the Mega Plane every CARPET.every seconds.
+ */
+export function stepMegaAbilities(s: MatchState, ev: SimEvent[]) {
+  // crushing ticks every 4 ticks; bombs fall on multiples of that
+  const crushEvery = 4, carpetEvery = Math.max(1, Math.round(sec(CARPET.every) / crushEvery)) * crushEvery;
+  if (s.tick % crushEvery) return;
+  const storm = stormy(s);
+  for (const id in s.ents) {
+    const u = s.ents[id];
+    if (u.t !== 'u' || u.inside || s.tick >= u.abUntil) continue;
+    const d = UNITS[u.kind];
+    if (d.ability === 'steamroll') {
+      const r = d.radius + STEAMROLL.reach;
+      near(s, u.x, u.y, r, (t) => {
+        if (t.t !== 'u' || t.inside || UNITS[t.kind].cls !== 'infantry' || !enemies(s, u.owner, t.owner)) return;
+        if (Math.hypot(t.x - u.x, t.y - u.y) > r + UNITS[t.kind].radius) return;
+        hurt(s, t, (STEAMROLL.dps * crushEvery) / TICK_RATE, 'gun', u, ev, false);
+      }, 0);
+    } else if (d.ability === 'carpet' && s.tick % carpetEvery === 0) {
+      if (storm && !hasPerk(s.players[u.owner], 'stormFlight')) continue;
+      u.fired = s.tick;
+      ev.push({ e: 'shot', src: u.id, owner: u.owner, x0: u.x, y0: u.y, x1: u.x, y1: u.y, w: 'bomb', kind: u.kind });
+      s.shots.push({
+        owner: u.owner, src: u.id, kind: u.kind, w: 0, x0: u.x, y0: u.y, x: u.x, y: u.y, t: 0, t0: s.tick,
+        land: s.tick + Math.max(1, sec(CARPET.fall)), dmg: CARPET.dmg, splash: CARPET.splash, cls: 'bomb', hits: ['ground', 'naval'],
+      });
+    }
+  }
+}
+
 /** City militia, and the fortress city's heavier guns. */
 /** The gun a city fights with now (null in unrest): a fortress city's or exiled capital's, else its militia. */
 export function cityGun(s: MatchState, c: City): Pick<WeaponDef, 'cls' | 'dmg' | 'range' | 'cd' | 'hits'> | null {
