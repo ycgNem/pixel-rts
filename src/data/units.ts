@@ -136,13 +136,13 @@ export const UNITS: Record<string, UnitDef> = {
   megatank: {
     id: 'megatank', name: 'Mega Tank', cls: 'vehicle', armor: 'heavy', layer: 'ground',
     hp: 3440, speed: 1.15, sight: 9, radius: 0.9, cost: { cash: 1000, oil: 1500 }, supply: 8, buildTime: 60,
-    at: ['factory'], tech: 'compositeArmor', limit: 3, ability: 'steamroll', hotkey: 'M',
+    at: ['factory'], tech: 'compositeArmor', limit: 2, ability: 'steamroll', hotkey: 'M',
     weapons: [
       { cls: 'cannon', dmg: 150.5, range: 7, cd: 2.6, hits: G, speed: 16, splash: 1.3 },
       { cls: 'gun', dmg: 10.8, range: 5, cd: 0.35, hits: G },
       { cls: 'flak', dmg: 12.9, range: 6, cd: 1, hits: AIR },
     ],
-    desc: 'A land dreadnought: triple cannon, machine guns and flak. Steamrolls infantry. 3 at most.',
+    desc: 'A land dreadnought: triple cannon, machine guns and flak hit anything. Steamrolls infantry. 2 at most.',
   },
   fighter: {
     id: 'fighter', name: 'Fighter', cls: 'aircraft', armor: 'air', layer: 'air',
@@ -168,12 +168,12 @@ export const UNITS: Record<string, UnitDef> = {
   megaplane: {
     id: 'megaplane', name: 'Mega Plane', cls: 'aircraft', armor: 'air', layer: 'air',
     hp: 2000, speed: 2.8, sight: 10, radius: 1, cost: { cash: 1000, oil: 1500 }, supply: 8, buildTime: 60,
-    at: ['airfield'], tech: 'jetEngines', limit: 3, ability: 'carpet', hotkey: 'M',
+    at: ['airfield'], tech: 'jetEngines', limit: 2, ability: 'carpet', hotkey: 'M',
     weapons: [
       { cls: 'bomb', dmg: 200, range: 1.5, cd: 4, hits: G, splash: 2, speed: 6 },
       { cls: 'missile', dmg: 22, range: 6, cd: 1.2, hits: AIR, speed: 22 },
     ],
-    desc: 'A flying wing: huge bombs, a carpet-bombing run, and missiles for fighters. 3 at most.',
+    desc: 'A flying wing: huge bombs and a carpet-bombing run for anything below, missiles for aircraft. 2 at most.',
   },
   patrolboat: {
     id: 'patrolboat', name: 'Patrol Boat', cls: 'ship', armor: 'ship', layer: 'naval',

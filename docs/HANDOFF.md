@@ -5,13 +5,13 @@ Running notes for whoever (human or AI session) picks this up next. Newest statu
 ## Status
 
 **2026-10-21 (latest) — mega units, work zones, a harsher economy, the rocket finale, lag fixes.**
-Not committed yet (the user commits and pushes). Player-facing summary: [PATCH_NOTES.md](PATCH_NOTES.md)
+Live on GitHub Pages. Player-facing summary: [PATCH_NOTES.md](PATCH_NOTES.md)
 ("Mega units, work zones and a rocket that ends the world"); the decisions log in PLAN.md has the
 numbers.
 
-- Mega units: `megatank` / `megaplane` in `src/data/units.ts` (`limit: 3`, abilities `steamroll`
+- Mega units: `megatank` / `megaplane` in `src/data/units.ts` (`limit: 2`, abilities `steamroll`
   and `carpet`, tuned by `STEAMROLL` and `CARPET`); `unitCount` / `limitReached` in
-  `src/sim/world.ts`; `stepMegaAbilities` in `src/sim/combat.ts`. Art: `assets/units.json`
+  `src/sim/world.ts` (two of each per player); `stepMegaAbilities` in `src/sim/combat.ts`. Art: `assets/units.json`
   (PixelLab objects a69afafe… and ac8186cc…; the Mega Tank's south frame had edge debris
   cleared by hand). PixelLab: 2,817.1 of the 2,885 allowed now used.
 - Work zones: the `zone` command, `Unit.post`, `zoneWork` in `src/sim/economy.ts`, `WORK_ZONE`;

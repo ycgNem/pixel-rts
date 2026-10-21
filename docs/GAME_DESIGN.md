@@ -218,11 +218,11 @@ Every weapon says which layers it can hit.
 | Heavy Tank | Factory | Heavy Armor | $500 + 100 oil | 3 | Breaks defensive lines. Cannon plus a machine gun. 882 HP: beats Light Tanks cost for cost; Rocket Troopers beat it. |
 | Artillery | Factory | Artillery | $400 + 70 oil | 3 | Long range, splash. Barrage. |
 | Flak Truck | Factory | Anti-Air | $250 + 30 oil | 2 | Mobile anti-air |
-| **Mega Tank** | Factory | Composite Armor | $1,000 + 1,500 oil | 8 | A land dreadnought, twice a Heavy Tank's size: 3,440 HP, a triple cannon (splash), machine guns and flak. **Steamroller:** 8 s 40% faster, crushing enemy infantry under its tracks. **3 at most at a time.** |
+| **Mega Tank** | Factory | Composite Armor | $1,000 + 1,500 oil | 8 | A land dreadnought, twice a Heavy Tank's size: 3,440 HP, a triple cannon (splash), machine guns and flak: it can attack any unit (land, sea or air) and any building. **Steamroller:** 8 s 40% faster, crushing enemy infantry under its tracks. **2 at most at a time.** |
 | Fighter | Airfield | Flight | $300 + 80 oil | 2 | Hunts aircraft. Afterburner. |
 | Bomber | Airfield | Bombers | $600 + 120 oil | 4 | Heavy damage to ground targets and buildings (108 a bomb) |
 | Attack Helicopter | Airfield | Rotorcraft | $450 + 100 oil | 3 | Anti-armor |
-| **Mega Plane** | Airfield | Jet Engines | $1,000 + 1,500 oil | 8 | A black flying wing: 2,000 HP, 200-damage bombs, missiles against fighters. **Carpet Bomb:** for 4 s a bomb falls under it every 0.4 s, wherever it flies. **3 at most at a time.** |
+| **Mega Plane** | Airfield | Jet Engines | $1,000 + 1,500 oil | 8 | A black flying wing: 2,000 HP, 200-damage bombs for ground, ships and buildings, missiles for aircraft: it can attack any unit and any building. **Carpet Bomb:** for 4 s a bomb falls under it every 0.4 s, wherever it flies. **2 at most at a time.** |
 | Patrol Boat | Dock, or a Harbor city | Shipbuilding | $200 + 20 oil | 2 | Fast, light |
 | Transport Ship | Dock | Shipbuilding | $250 + 30 oil | 2 | Carries land units. 600 HP. |
 | Destroyer | Dock | Naval Doctrine | $550 + 110 oil | 4 | All-rounder with flak. Sonar finds submarines; depth charges sink them. |
@@ -232,7 +232,7 @@ Every weapon says which layers it can hit.
 
 **Ground units hit harder and last longer:** every ground unit (infantry and vehicles) has 7.5%
 more HP and damage than the first balance (Rifleman 86 HP and 8.6 a shot, for example). Bombers
-deal 10% less. The **mega units** count toward their limit while in training, so a fourth can't
+deal 10% less. The **mega units** count toward their limit while in training, so a third can't
 be queued; the AI only picks one with the oil already banked.
 
 **The naval triangle:** destroyers beat submarines (depth charges), battleships beat destroyers

@@ -4,13 +4,13 @@ Newest first. Play at https://ycgnem.github.io/pixel-rts/
 
 ## 2026-10-21: Mega units, work zones and a rocket that ends the world
 
-- **Two mega units**, each $1,000 + 1,500 oil. You can have **at most 3 of each** at a time,
-  counting any still in training.
+- **Two mega units**, each $1,000 + 1,500 oil. You can have **at most 2 of each** at a time,
+  counting any still in training. Both can attack any unit (land, sea or air) and any building.
   - **Mega Tank** (Factory, after Composite Armor): a land dreadnought on six treads, twice a
     Heavy Tank's size. 3,440 HP, a triple cannon, machine guns and flak. **Steamroller** (E): 40%
     faster for 8 seconds, and enemy infantry under its tracks get crushed.
   - **Mega Plane** (Airfield, after Jet Engines): a black flying wing with eight glowing jets.
-    2,000 HP, 200-damage bombs, and missiles for fighters. **Carpet Bomb** (E): for 4 seconds a
+    2,000 HP, 200-damage bombs, and missiles for aircraft. **Carpet Bomb** (E): for 4 seconds a
     bomb falls under it every 0.4 s, wherever you fly it.
 - **A harsher economy.** Buying oil at the HQ costs **$1,250 for 100** (five times the old price);
   each buy still makes the next one 10% dearer, and prices cool off as before. Oil comes from
