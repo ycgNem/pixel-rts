@@ -27,7 +27,8 @@ numbers.
   `src/render/finale.ts` (played by `MatchScreen.frame`). Screenshots of all of this patch's
   visible features: `node e2e/mega.mjs <url> <outDir>`.
 - River option: `MatchSetup.river`, the River row in the setup screen.
-- Checks: 157 unit tests; e2e smoke, controls, orders, overlap pass; `npm run build` ok.
+- Sandbox: `MatchSetup.sandbox`, `stepSandbox` in `src/sim/economy.ts`, `SANDBOX`; the title's Sandbox button and Start money: Infinite.
+- Checks: 159 unit tests; e2e smoke, controls, orders, overlap pass; `npm run build` ok.
 - Open: the AI never builds a mega unit (it rarely banks 1,500 oil); give it a late-game oil
   savings plan if mega units should show up in AI armies. At the strategic zoom, chunks that were
   never painted show the coarse map for a few seconds (the finale's zoom-out shows it too).

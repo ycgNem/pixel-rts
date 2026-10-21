@@ -9,6 +9,9 @@ export const START = {
 
 export const SUPPLY = { max: 200 };
 
+/** Sandbox: every tick, human players' cash, oil and science are topped up to these (and CP to full). */
+export const SANDBOX = { cash: 999999, oil: 999999, science: 999999 };
+
 /**
  * Building cap: a player may own at most `base` buildings plus `perCity` for each city they hold
  * (the HQ doesn't count; unfinished buildings do), so defenses can't be spammed without growing.

@@ -134,11 +134,18 @@ export class TitleScreen implements Screen {
     by += 24;
     if (ui.button(bx, by, bw, 20, { label: 'Play online', tip: 'Co-op or versus with friends, peer to peer.\nHost a game and share the code, or join one.' })) app.show(new OnlineScreen(app));
     by += 24;
-    if (ui.button(bx, by, bw, 20, { label: 'Quick battle', tip: 'You and an AI ally vs two AI rivals.' })) {
+    const half = (bw - 4) / 2;
+    if (ui.button(bx, by, half, 20, { label: 'Quick battle', tip: 'You and an AI ally vs two AI rivals.' })) {
       const setup = loadSetup();
       setup.seed = (Math.random() * 1e9) | 0;
       setup.players = presetPlayers('2v2');
       launch(app, setup);
+    }
+    if (ui.button(bx + half + 4, by, half, 20, { label: 'Sandbox', tip: 'Infinite cash, oil, science and Command Points:\nresearch finishes at once, so build anything and try it out.\nAgainst one Easy AI. (Skirmish has it too: Start money > Infinite.)' })) {
+      // not remembered as the skirmish setup
+      const setup: MatchSetup = { ...loadSetup(), seed: (Math.random() * 1e9) | 0, sandbox: true, timeLimit: 0 };
+      setup.players = presetPlayers('1v1').map((p) => (p.ai ? { ...p, ai: { ...p.ai, difficulty: 'easy' as AiDifficulty } } : p));
+      play(app, startSession(setup, 0));
     }
     by += 24;
     // new here? Boot Camp is lit up until it's been tried
@@ -316,7 +323,11 @@ export class SetupScreen implements Screen {
     row('Supply crates', st.crates ? 'On' : 'Off', () => (st.crates = !st.crates), 'Crates parachute into the open map. First to touch one takes it.');
     row('City contracts', st.contracts !== false ? 'On' : 'Off', () => (st.contracts = st.contracts === false), 'Cities post public jobs: a tender (the top bid buys the city),\na hold (keep it a minute for cash and CP), or a bounty on a runaway leader\'s city.');
     row('Insurgency', st.insurgency !== false ? 'On' : 'Off', () => (st.insurgency = st.insurgency === false), 'Knocked-out players fight on: they drop partisans at cities,\nand come back by holding a town for a few minutes.');
-    row('Start money', st.startMul === 2 ? 'High' : st.startMul === 0.5 ? 'Low' : 'Normal', () => (st.startMul = cycle([1, 2, 0.5], st.startMul ?? 1)));
+    // Infinite is the sandbox: endless cash, oil, science and CP for the human players
+    row('Start money', st.sandbox ? 'Infinite' : st.startMul === 2 ? 'High' : st.startMul === 0.5 ? 'Low' : 'Normal', () => {
+      if (st.sandbox) { st.sandbox = false; st.startMul = 1; } else if (st.startMul === 0.5) st.sandbox = true;
+      else st.startMul = cycle([1, 2, 0.5], st.startMul ?? 1);
+    }, 'Normal, High or Low starting cash.\nInfinite (sandbox): human players never run out of cash, oil,\nscience or Command Points, and research finishes at once.');
     ui.text('Seed', ox, oy + 4, COL.light);
     ui.text(String(st.seed), ox + 72, oy + 4, COL.text);
     if (ed && ui.button(ox + 130, oy, 30, 15, { label: 'New', tip: 'Roll a new map' })) { st.seed = (Math.random() * 1e9) | 0; this.changed(); }

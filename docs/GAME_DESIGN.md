@@ -538,6 +538,12 @@ team and a color.
 A preset with more than four players turns a Small map into Medium (six starts on 144 tiles leave
 no room to expand). Any setup can still go back to Small by hand.
 
+**Sandbox** (title screen, beside Quick battle; or **Start money: Infinite** in a skirmish): every
+human player's cash, oil and science are topped up to 999,999 each tick and Command Points stay
+full, so research finishes at once and anything can be built to try it out. AI players play a
+normal game. The title's Sandbox is against one Easy AI with no time limit, and isn't remembered
+as the skirmish setup.
+
 **Boot Camp** (title screen): the tutorial. A small map picked for ore, oil and a city close to
 your start, against an Easy AI. A card shows one step at a time (look around, mine, derrick,
 barracks, riflemen, take a city, research, a tank, a Command Power, then "now win"). Each step

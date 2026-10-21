@@ -29,6 +29,9 @@ Newest first. Play at https://ycgnem.github.io/pixel-rts/
   ends, the rocket lifts off and **the whole island it stood on blows up**: a white flash, a
   shockwave, and a firestorm that sweeps the land and leaves it scorched. Any key skips it.
 - **Maps without a river:** the setup has **River: On/Off** for Pangaea and Lakes maps.
+- **Sandbox mode:** the **Sandbox** button on the title screen (or **Start money: Infinite** in a
+  skirmish) gives you endless cash, oil, science and Command Points. Research finishes at once, so
+  you can unlock and build anything, mega units included, and try it against an Easy AI.
 - **Smoother games.** Online matches send about two-thirds less data, so 4-player games stop
   lagging. Scrolling onto ground that hasn't been drawn yet no longer stutters: it's painted over
   a few frames instead of all at once.

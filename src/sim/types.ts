@@ -38,6 +38,8 @@ export interface MatchSetup {
   contracts?: boolean;
   /** a river with two bridges across Pangaea and Lakes maps (on unless false) */
   river?: boolean;
+  /** sandbox: human players have endless cash, oil, science and Command Points (SANDBOX) */
+  sandbox?: boolean;
 }
 
 export interface Deposit { kind: 'ore' | 'oil'; x: number; y: number; rich?: boolean }

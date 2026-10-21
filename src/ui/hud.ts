@@ -424,7 +424,7 @@ Mines earn cash for the rest of the match.`;
     };
     item(ICON.cash, COL.gold, '$' + fmt(p.cash), `+${Math.round(inc.cash * 60)}/m`, 'Cash\nFrom mines, cities and your HQ. Pays for everything.');
     // no oil coming in: say where it comes from, right in the bar
-    const dry = inc.oil <= 0 && p.alive;
+    const dry = inc.oil <= 0 && p.alive && !s.setup.sandbox;
     item(ICON.oil, COL.oil, `${fmt(p.oil)} oil`, dry ? 'build a Derrick' : `+${Math.round(inc.oil * 60)}/m`,
       `Oil\nPumped by Oil Derricks, built on oil wells (the dark pools on the map).\nTanks and other vehicles, aircraft and ships cost oil:\nthe ${ICON.oil} number on their buttons.\nYour HQ can also buy oil for cash (the exchange).`, COL.white, dry ? COL.gold : COL.dim);
     if (p.alive) {

@@ -3,7 +3,7 @@ import { UNITS } from '../data/units';
 import { BUILDINGS } from '../data/buildings';
 import { CITY_LEVELS, SPECS } from '../data/cities';
 import { COMMAND } from '../data/powers';
-import { LAST_STAND, PRODUCTION, SUPPLY, VICTORY, WORK_ZONE } from '../data/rules';
+import { LAST_STAND, PRODUCTION, SANDBOX, SUPPLY, VICTORY, WORK_ZONE } from '../data/rules';
 import { ERAS, TECHS, TECHS_PER_ERA, TECH_COST, TECH_ESCALATE, ALLY_TECH_DISCOUNT, DOCTRINES, PERKS } from '../data/techs';
 import type { Building, City, Ent, MatchState, Player, ProdItem, SimEvent, Unit, WorkZone } from './types';
 import { DT, TICK_RATE } from './types';
@@ -60,6 +60,18 @@ export function supplyCap(s: MatchState, p: number): number {
 }
 
 // ---------------------------------------------------------------- income
+
+/** Sandbox: human players never run short of anything (SANDBOX); research finishes at once. */
+export function stepSandbox(s: MatchState) {
+  if (!s.setup.sandbox) return;
+  for (const p of s.players) {
+    if (p.kind !== 'human') continue;
+    p.cash = Math.max(p.cash, SANDBOX.cash);
+    p.oil = Math.max(p.oil, SANDBOX.oil);
+    p.science = Math.max(p.science, SANDBOX.science);
+    p.cp = Math.max(p.cp, COMMAND.max);
+  }
+}
 
 export function cityIncome(s: MatchState, c: City): { cash: number; science: number; cp: number } {
   if (c.owner < 0 || s.tick < c.calm) return { cash: 0, science: 0, cp: 0 };
