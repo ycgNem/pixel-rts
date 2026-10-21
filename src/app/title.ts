@@ -167,14 +167,18 @@ export class TitleScreen implements Screen {
 
 // ---------------------------------------------------------------- setup
 
-function presetPlayers(kind: '1v1' | '2v2' | 'ffa4' | 'coop'): PlayerSetup[] {
+type PresetKind = '1v1' | '2v2' | '3v3' | 'ffa4' | 'ffa6' | 'coop';
+
+function presetPlayers(kind: PresetKind): PlayerSetup[] {
   const you: PlayerSetup = { name: 'You', team: 0, color: 0, kind: 'human' };
   const ai = (name: string, team: number, color: number, difficulty: AiDifficulty = 'normal', personality: AiPersonality | 'random' | undefined = 'random'): PlayerSetup => ({ name, team, color, kind: 'ai', ai: { difficulty, personality } });
   switch (kind) {
     case '1v1': return [you, ai('General Rust', 1, 1)];
     // allies get a warm color far from the enemies' (yellow beside blue; red and purple across)
     case '2v2': return [you, ai('Ally Gold', 0, 2), ai('General Rust', 1, 1), ai('Admiral Plum', 1, 3)];
+    case '3v3': return [you, ai('Ally Gold', 0, 2), ai('Ally Teal', 0, 4), ai('General Rust', 1, 1), ai('Admiral Plum', 1, 3), ai('Major Rose', 1, 5)];
     case 'ffa4': return [{ ...you }, ai('General Rust', 1, 1), ai('Marshal Gold', 2, 2), ai('Admiral Plum', 3, 3)];
+    case 'ffa6': return [{ ...you }, ai('General Rust', 1, 1), ai('Marshal Gold', 2, 2), ai('Admiral Plum', 3, 3), ai('Colonel Teal', 4, 4), ai('Major Rose', 5, 5)];
     case 'coop': return [you, ai('Ally Gold', 0, 2), ai('General Rust', 1, 1, 'hard'), ai('Admiral Plum', 1, 3, 'hard'), ai('Baron Frost', 1, 5, 'hard')];
   }
 }
@@ -405,13 +409,21 @@ export class SetupScreen implements Screen {
     if (!lob) {
       ui.text('Presets', px, py, COL.light);
       py += 11;
-      const preset = (label: string, k: '1v1' | '2v2' | 'ffa4' | 'coop', tip: string, bx: number) => {
-        if (ui.button(bx, py, 60, 15, { label, tip })) { st.players = presetPlayers(k); this.changed(); }
+      const preset = (label: string, k: PresetKind, tip: string, bx: number, by: number) => {
+        if (ui.button(bx, by, 60, 15, { label, tip })) {
+          st.players = presetPlayers(k);
+          // six starts on a small map leaves no room to grow
+          if (st.players.length > 4 && st.mapSize === 'small') st.mapSize = 'medium';
+          this.changed();
+        }
       };
-      preset('1 v 1', '1v1', 'You against one AI.', px);
-      preset('2 v 2', '2v2', 'You and an AI ally against two AIs.', px + 62);
-      preset('FFA 4', 'ffa4', 'Four players, everyone for themselves.', px + 124);
-      preset('Co-op', 'coop', 'You and an AI ally against three hard AIs.', px + 186);
+      preset('1 v 1', '1v1', 'You against one AI.', px, py);
+      preset('2 v 2', '2v2', 'You and an AI ally against two AIs.', px + 62, py);
+      preset('3 v 3', '3v3', 'You and two AI allies against three AIs.\n(A small map becomes medium.)', px + 124, py);
+      preset('FFA 4', 'ffa4', 'Four players, everyone for themselves.', px, py + 17);
+      preset('FFA 6', 'ffa6', 'Six players, everyone for themselves.\n(A small map becomes medium.)', px + 62, py + 17);
+      preset('Co-op', 'coop', 'You and an AI ally against three hard AIs.\n(A small map becomes medium.)', px + 124, py + 17);
+      py += 17;
     } else {
       const code = lob.lobby!.code;
       ui.text(`Room code: ${code}`, px, py, COL.white);

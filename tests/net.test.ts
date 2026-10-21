@@ -37,6 +37,34 @@ describe('online', () => {
     expect(cs[1].lobby!.seats[1].ready).toBe(true);
   });
 
+  it('seats six humans with their own colors, turns a seventh away, and starts the match for all', async () => {
+    const { hub, host, cs } = await lobbyWith(5);
+    expect(host.lobby!.seats.length).toBe(6);
+    expect(new Set(host.lobby!.seats.map((s) => s.color)).size).toBe(6);
+    const late = new LobbyClient(hub.connect(), 'Late');
+    await flush();
+    await flush();
+    expect(late.refused).toMatch(/full/);
+    expect(host.lobby!.seats.length).toBe(6);
+    const sessions: (Session | null)[] = cs.map(() => null);
+    cs.forEach((c, i) => {
+      c.seat({ team: i + 1 });
+      c.onStart = (s) => (sessions[i] = s);
+    });
+    await flush();
+    const hs = host.start();
+    await flush();
+    expect(hs.state.players.length).toBe(6);
+    expect(new Set(hs.state.players.map((p) => p.team)).size).toBe(6);
+    for (let i = 0; i < 40; i++) hs.tick();
+    await flush();
+    sessions.forEach((s, i) => {
+      const cl = s as ClientSession;
+      expect(cl.me).toBe(i + 1);
+      expect(cl.state.tick).toBe(hs.state.tick);
+    });
+  });
+
   it('a client on an old version is told to refresh', async () => {
     const { hub, host } = await lobbyWith(0);
     const old = hub.connect();

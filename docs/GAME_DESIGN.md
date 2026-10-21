@@ -508,8 +508,13 @@ team and a color.
 |---|---|
 | 1v1 | You against one Normal AI |
 | 2v2 | You and an AI ally (yellow) against two AIs (red, purple) |
+| 3v3 | You and two AI allies (yellow, teal) against three AIs (red, purple, pink) |
 | FFA 4 | Four players, every one for themselves |
+| FFA 6 | Six players, every one for themselves |
 | Co-op | You and an ally against three Hard AIs |
+
+A preset with more than four players turns a Small map into Medium (six starts on 144 tiles leave
+no room to expand). Any setup can still go back to Small by hand.
 
 **Boot Camp** (title screen): the tutorial. A small map picked for ore, oil and a city close to
 your start, against an Easy AI. A card shows one step at a time (look around, mine, derrick,
