@@ -58,7 +58,7 @@ export const PRODUCTION = {
  * `pause` seconds at each. A plain click makes a zone of radius `r` tiles; a drag sets the radius, `min` to `max`.
  * Move and Stop orders free the Builder; build orders keep the zone (it comes back afterwards).
  */
-export const WORK_ZONE = { r: 8, min: 3, max: 24, edge: 0.8, points: 6, pause: 3 };
+export const WORK_ZONE = { r: 11.3, min: 4.2, max: 34, edge: 0.8, points: 6, pause: 3 };
 
 /**
  * How far apart units keep. Infantry keep `infantry` times their touching distance from other

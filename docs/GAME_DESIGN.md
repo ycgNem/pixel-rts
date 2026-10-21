@@ -174,7 +174,7 @@ within 6 tiles**. A building cancelled during construction refunds 75%; a finish
 (click twice, or Z twice). With no rally point, new ground units walk a few tiles clear of the door.
 
 **Work zones (our twist on roaming crews):** give Builders a zone (Zone, G: click a spot for a
-zone of radius 8 tiles, or drag out its radius, 3 to 24 tiles) and they stop
+zone of radius 11.3 tiles, about 400 square tiles, or drag out its radius, 4.2 to 34 tiles) and they stop
 roaming the base. They build your unfinished buildings inside it (fewest Builders first) and
 repair your damaged ones there (not under fire), walk back if something pulls them out, and with
 nothing to do walk the zone's edge, resting 3 s at each of six stops. A Build or repair order
