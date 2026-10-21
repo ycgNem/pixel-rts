@@ -46,14 +46,16 @@ export function matchups(kind: string): Matchups {
   // fights that happen: land against land, sea against sea, and aircraft against everyone
   const meet = (o: UnitDef) => o.layer === d.layer || o.layer === 'air' || d.layer === 'air';
   const both = (o: UnitDef) => power(d, o) > 0 && power(o, d) > 0;
-  // real fights (both sides shoot) first; one-sided ones ("can't hit aircraft") only fill the gaps
-  const rank = (f: (o: UnitDef) => number) => {
+  // real fights (both sides shoot) first; one-sided ones ("can't hit aircraft") only fill the gaps.
+  // A one-sided "Beats" needs a loser that attacks ground or ships (fighters beat bombers), not
+  // one that would never fight it anyway (a Mega Tank doesn't "beat" fighters)
+  const rank = (f: (o: UnitDef) => number, oneSided: (o: UnitDef) => boolean) => {
     const list = others.filter((o) => meet(o) && f(o) >= BEATS);
     const by = (a: UnitDef, b: UnitDef) => Math.min(f(b), 99) - Math.min(f(a), 99) || a.id.localeCompare(b.id);
-    return [...list.filter(both).sort(by), ...list.filter((o) => !both(o)).sort(by)].slice(0, 2).map((o) => plural(o.name));
+    return [...list.filter(both).sort(by), ...list.filter((o) => !both(o) && oneSided(o)).sort(by)].slice(0, 2).map((o) => plural(o.name));
   };
-  const beats = rank((o) => edge(kind, o.id));
-  const counters = rank((o) => edge(o.id, kind));
+  const beats = rank((o) => edge(kind, o.id), (o) => o.weapons.some((w) => w.hits.some((l) => l !== 'air')));
+  const counters = rank((o) => edge(o.id, kind), () => true);
   const layers = new Set(d.weapons.flatMap((w) => w.hits));
   const cantHit = d.weapons.length ? (['ground', 'air', 'naval'] as Layer[]).filter((l) => !layers.has(l)).map((l) => LAYER_WORDS[l]) : [];
   const out = { beats, counters, cantHit };

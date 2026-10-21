@@ -93,6 +93,22 @@ describe('win conditions', () => {
     expect(s.over).toBeNull();
   });
 
+  it("science: a site finished during another's countdown starts its own once that one is gone", () => {
+    const s = match();
+    rich(s, 0);
+    rich(s, 1);
+    const first = buildLaunchSite(s, 0).site;
+    const second = buildLaunchSite(s, 1).site;
+    expect(s.launch?.id).toBe(first.id);
+    first.hp = 0;
+    const ev = run(s, 1.5);
+    expect(s.launch?.id).toBe(second.id);
+    expect(ev.some((e) => e.e === 'launch' && e.p === 1)).toBe(true);
+    run(s, VICTORY.launchTime + 2);
+    expect(s.over?.reason).toBe('science');
+    expect(s.over?.winners).toBe(s.players[1].team);
+  });
+
   it('scrub: enemy infantry beside the site delay the launch, unless defending infantry are there', () => {
     const s = match();
     rich(s, 0);
@@ -271,11 +287,15 @@ describe('win conditions', () => {
     expect(s.over?.winners).toBe(s.players[1].team);
   });
 
-  it('time limit: Auto is 45 min in a big or naval match, and none in a small land one', () => {
+  it('time limit: Auto is 45 min in a big or naval match, 60 with three sides or more, and none in a small land one', () => {
     const base = setup({ timeLimit: -1 }, 2);
     expect(timeLimitOf(base)).toBe(0);
     expect(timeLimitOf({ ...base, mapType: 'islands' })).toBe(VICTORY.autoLimit);
     expect(timeLimitOf(setup({ timeLimit: -1 }, VICTORY.autoLimitPlayers))).toBe(VICTORY.autoLimit);
+    // a 4-player free-for-all on land, and the same players in two teams
+    const ffa = setup({ timeLimit: -1 }, 4);
+    expect(timeLimitOf(ffa)).toBe(VICTORY.autoLimitLong);
+    expect(timeLimitOf({ ...ffa, players: ffa.players.map((p, i) => ({ ...p, team: i % 2 })) })).toBe(0);
     // a set limit is kept as it is
     expect(timeLimitOf({ ...base, mapType: 'islands', timeLimit: 0 })).toBe(0);
     // and the match ends on it

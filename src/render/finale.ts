@@ -12,6 +12,8 @@ import { TILE, ZOOMS, type Camera } from './view';
 
 /** seconds: the climb before the blast, the firestorm's sweep, the smoke afterwards */
 const LIFT = 2.8, SWEEP = 5.5, AFTER = 2.5;
+/** seconds after the blast when the mushroom cloud starts to thin out, and how long that takes */
+const CLOUD_FADE = 4, CLOUD_GONE = 3.5;
 /** scorch overlay pixels per tile (each is 8 art pixels) */
 const SUB = 4;
 /** flame colors, hottest first */
@@ -152,6 +154,11 @@ export class LaunchFinale {
   }
 
   /** In world space, over everything on the map (once it is over, just the scorched island). */
+  /** Has the island gone up yet (or the finale been skipped)? */
+  get blasted(): boolean {
+    return this.done || this.t >= LIFT;
+  }
+
   draw(ctx: CanvasRenderingContext2D, cam: Camera) {
     const t = this.t, z = cam.z, px = TILE * z;
     const cell = Math.max(1, Math.round(8 * z));
@@ -216,13 +223,31 @@ export class LaunchFinale {
       ctx.arc(cam.sx(this.px), cam.sy(this.py), r, 0, Math.PI * 2);
       ctx.stroke();
     }
-    // the mushroom cloud over the pad
-    const g = Math.min(1, a / 3), sx = cam.sx(this.px), sy = cam.sy(this.py);
+    // the mushroom cloud over the pad: billowing puffs on a smoky stem, lit from above, that
+    // churn and then thin out
+    const g = Math.min(1, a / 3), fade = Math.max(0, Math.min(1, 1 - (a - CLOUD_FADE) / CLOUD_GONE));
+    if (fade <= 0) return;
+    const sx = cam.sx(this.px), sy = cam.sy(this.py);
     const stem = g * 10 * TILE * z, cap = (2 + g * 6) * TILE * z;
-    ctx.fillStyle = rgba(C.slate, 0.85);
-    ctx.fillRect(Math.round(sx - cap * 0.25), Math.round(sy - stem), Math.round(cap * 0.5), Math.round(stem));
-    for (const [rr, c, al] of [[1, C.slate, 0.9], [0.8, C.stone, 0.9], [0.5, C.orange, 0.8 * (1 - g)], [0.3, C.gold, 1 - g]] as [number, number, number][]) {
-      ctx.fillStyle = rgba(c, al);
+    for (let k = 0; k < 7; k++) {
+      const f = k / 6, wob = Math.sin(t * 2.2 + k * 1.3) * cap * 0.05;
+      ctx.fillStyle = rgba(k % 2 ? C.plum : C.slate, 0.75 * fade);
+      this.puff(ctx, sx + wob, sy - stem * f, cap * (0.2 + 0.05 * Math.sin(k * 1.7 + t)), cell);
+    }
+    const puffs = 9;
+    for (let k = 0; k < puffs; k++) {
+      const an = (k / puffs) * Math.PI * 2 + t * 0.12;
+      const ox = Math.cos(an) * cap * 0.55, oy = Math.sin(an) * cap * 0.28;
+      // the far (upper) side catches the light
+      ctx.fillStyle = rgba(oy < 0 ? C.stone : k % 2 ? C.slate : C.plum, 0.88 * fade);
+      this.puff(ctx, sx + ox, sy - stem + oy, cap * (0.38 + 0.07 * Math.sin(k * 2.3 + t * 1.4)), cell);
+    }
+    ctx.fillStyle = rgba(C.stone, 0.9 * fade);
+    this.puff(ctx, sx, sy - stem - cap * 0.12, cap * 0.42, cell);
+    // the fireball's glow inside it, dying down
+    for (const [rr, c, al] of [[0.5, C.orange, 0.8 * (1 - g)], [0.3, C.gold, 1 - g]] as [number, number, number][]) {
+      if (al <= 0) continue;
+      ctx.fillStyle = rgba(c, al * fade);
       this.disc(ctx, sx, sy - stem, cap * rr, cell);
     }
   }
@@ -273,6 +298,23 @@ export class LaunchFinale {
   }
 
   /** A filled disc made of square cells (pixel art at any zoom). */
+  /** A disc with a checkered (dithered) rim, so puffs of smoke have soft, broken edges. */
+  private puff(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, cell: number) {
+    const n = Math.ceil(r / cell), inner = r * 0.72;
+    for (let j = -n; j <= n; j++) {
+      const y = Math.round(cy + j * cell);
+      const half = Math.round(Math.sqrt(Math.max(0, r * r - (j * cell) ** 2)) / cell);
+      const core = Math.round(Math.sqrt(Math.max(0, inner * inner - (j * cell) ** 2)) / cell);
+      if (half <= 0) continue;
+      if (core > 0) ctx.fillRect(Math.round(cx - core * cell), y, core * cell * 2, cell);
+      for (let i = core; i < half; i++) {
+        if ((i + j) & 1) continue;
+        ctx.fillRect(Math.round(cx + i * cell), y, cell, cell);
+        ctx.fillRect(Math.round(cx - (i + 1) * cell), y, cell, cell);
+      }
+    }
+  }
+
   private disc(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, cell: number) {
     const n = Math.ceil(r / cell);
     for (let j = -n; j <= n; j++) {

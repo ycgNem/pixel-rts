@@ -136,10 +136,9 @@ export class TitleScreen implements Screen {
     by += 24;
     const half = (bw - 4) / 2;
     if (ui.button(bx, by, half, 20, { label: 'Quick battle', tip: 'You and an AI ally vs two AI rivals.' })) {
-      const setup = loadSetup();
-      setup.seed = (Math.random() * 1e9) | 0;
-      setup.players = presetPlayers('2v2');
-      launch(app, setup);
+      // not remembered as the skirmish setup, and never a sandbox
+      const setup: MatchSetup = { ...loadSetup(), seed: (Math.random() * 1e9) | 0, sandbox: false, players: presetPlayers('2v2') };
+      play(app, startSession(setup, Math.max(0, setup.players.findIndex((p) => p.kind === 'human'))));
     }
     if (ui.button(bx + half + 4, by, half, 20, { label: 'Sandbox', tip: 'Infinite cash, oil, science and Command Points:\nresearch finishes at once, so build anything and try it out.\nAgainst one Easy AI. (Skirmish has it too: Start money > Infinite.)' })) {
       // not remembered as the skirmish setup
@@ -233,6 +232,8 @@ function play(app: App, sess: Session, opts: { tutorial?: boolean; online?: bool
       play(app, startSession(setup, sess.me), opts);
     },
   }));
+  // an online host keeps the match running for everyone while its tab is in the background
+  app.loop.keepAlive = !!opts.online && sess.host;
 }
 
 /** Boot Camp: a small map picked for ore, oil and a city close to your start, and an Easy AI. */
@@ -318,7 +319,7 @@ export class SetupScreen implements Screen {
     row('Science', st.victory.science ? 'On' : 'Off', () => (st.victory.science = !st.victory.science), 'Win by researching the Space Program and surviving the launch countdown.');
     const auto = timeLimitOf({ ...st, timeLimit: -1 });
     row('Time limit', st.timeLimit < 0 ? `Auto: ${auto ? auto / 60 + ' min' : 'none'}` : st.timeLimit ? `${st.timeLimit / 60} min` : 'None', () => (st.timeLimit = cycle([-1, 0, 1200, 1800, 2700, 3600], st.timeLimit)),
-      `When time runs out, the highest score wins.\nAuto: ${VICTORY.autoLimit / 60} min with ${VICTORY.autoLimitPlayers}+ players or on Continents and Islands (big and naval games can stall), none otherwise.`);
+      `When time runs out, the highest score wins.\nAuto: ${VICTORY.autoLimit / 60} min with ${VICTORY.autoLimitPlayers}+ players or on Continents and Islands (big and naval games can stall),\n${VICTORY.autoLimitLong / 60} min with ${VICTORY.autoLimitTeams}+ sides, none otherwise.`);
     row('Weather', st.weather ? 'On' : 'Off', () => (st.weather = !st.weather), 'Day and night, rain and storms.');
     row('Supply crates', st.crates ? 'On' : 'Off', () => (st.crates = !st.crates), 'Crates parachute into the open map. First to touch one takes it.');
     row('City contracts', st.contracts !== false ? 'On' : 'Off', () => (st.contracts = st.contracts === false), 'Cities post public jobs: a tender (the top bid buys the city),\na hold (keep it a minute for cash and CP), or a bounty on a runaway leader\'s city.');

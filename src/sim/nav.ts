@@ -3,7 +3,10 @@
 // footprints) and cached outside it; caches rebuild when `navVer` changes.
 //
 // Flow fields: one Dijkstra from the goal tile(s) serves every unit heading there. The search is
-// resumable — it only expands as far as the units asking need — so short moves stay cheap.
+// resumable — it only expands as far as the units asking need — so short moves stay cheap. A
+// building going up or coming down only throws away the fields whose search got near it, and the
+// movement step shares a budget of search steps per tick (see `NAV_BUDGET`), so a burst of new
+// paths is spread over a few ticks instead of stalling one.
 import { TERRAIN } from '../data/terrain';
 import { BUILDINGS } from '../data/buildings';
 import type { Layer } from '../data/damage';
@@ -12,6 +15,13 @@ import { Heap } from './heap';
 
 const SQRT2 = Math.SQRT2;
 const MAX_FIELDS = 64;
+/** spare flow-field arrays kept for reuse (each set is 9 bytes a tile: ~750 KB on a Large map) */
+const MAX_POOL = 8;
+/**
+ * Flow-field search steps the movement step may spend per tick. A unit whose path isn't ready
+ * waits where it is (a tick or two), and the search carries on next tick.
+ */
+export const NAV_BUDGET = 40000;
 
 export interface Nav {
   w: number;
@@ -31,7 +41,13 @@ export interface Nav {
   clearGround: Uint8Array;
   clearNaval: Uint8Array;
   fields: Map<string, FlowField>;
+  /** flow-field arrays to reuse */
+  pool: FieldBufs[];
+  /** search steps left this tick (Infinity outside the movement step) */
+  budget: number;
 }
+
+interface FieldBufs { dist: Float32Array; closed: Uint8Array; nextOf: Int32Array }
 
 const navCache = new WeakMap<object, Nav>();
 
@@ -39,25 +55,29 @@ export function nav(s: MatchState): Nav {
   let n = navCache.get(s.map);
   if (n && n.ver === s.navVer) return n;
   const { w, h, terrain } = s.map;
+  // terrain never changes during a match: only building footprints do, and they only block ground
+  const fresh = !n;
   if (!n) {
     n = {
       w, h, ver: -1,
       ground: new Uint8Array(w * h), naval: new Uint8Array(w * h), occ: new Int32Array(w * h),
       speed: new Float32Array(w * h), compGround: new Int32Array(w * h), compNaval: new Int32Array(w * h),
       clearGround: new Uint8Array(w * h), clearNaval: new Uint8Array(w * h),
-      fields: new Map(),
+      fields: new Map(), pool: [], budget: Infinity,
     };
     navCache.set(s.map, n);
+    for (let i = 0; i < w * h; i++) {
+      const t = TERRAIN[terrain[i]];
+      n.naval[i] = t.naval ? 1 : 0;
+      n.speed[i] = t.ground;
+    }
+    label(n.naval, n.compNaval, w, h);
+    clearance(n.naval, n.clearNaval, w, h);
   }
   n.ver = s.navVer;
-  n.fields.clear();
+  const before = fresh ? null : n.ground.slice();
   n.occ.fill(0);
-  for (let i = 0; i < w * h; i++) {
-    const t = TERRAIN[terrain[i]];
-    n.ground[i] = t.cost;
-    n.naval[i] = t.naval ? 1 : 0;
-    n.speed[i] = t.ground;
-  }
+  for (let i = 0; i < w * h; i++) n.ground[i] = TERRAIN[terrain[i]].cost;
   for (const id in s.ents) {
     const e = s.ents[id];
     if (e.t !== 'b') continue;
@@ -71,9 +91,18 @@ export function nav(s: MatchState): Nav {
       }
   }
   label(n.ground, n.compGround, w, h);
-  label(n.naval, n.compNaval, w, h);
   clearance(n.ground, n.clearGround, w, h);
-  clearance(n.naval, n.clearNaval, w, h);
+  // keep every ground field whose search never came near a changed tile: carrying on with it gives
+  // exactly what a new search would (sea fields never see buildings)
+  if (before) {
+    const changed: number[] = [];
+    for (let i = 0; i < w * h; i++) if (before[i] !== n.ground[i]) changed.push(i);
+    for (const [k, f] of n.fields)
+      if (f.layer === 'ground' && f.near(changed)) {
+        n.fields.delete(k);
+        f.release();
+      }
+  }
   return n;
 }
 
@@ -204,14 +233,40 @@ export class FlowField {
   private heap = new Heap(1024);
   used = 0;
 
-  constructor(private n: Nav, private layer: Layer, goals: number[]) {
-    this.dist = new Float32Array(n.w * n.h).fill(Infinity);
-    this.closed = new Uint8Array(n.w * n.h);
-    this.nextOf = new Int32Array(n.w * n.h).fill(-2);
+  constructor(private n: Nav, readonly layer: Layer, goals: number[]) {
+    const b = n.pool.pop();
+    if (b) {
+      this.dist = b.dist.fill(Infinity);
+      this.closed = b.closed.fill(0);
+      this.nextOf = b.nextOf.fill(-2);
+    } else {
+      this.dist = new Float32Array(n.w * n.h).fill(Infinity);
+      this.closed = new Uint8Array(n.w * n.h);
+      this.nextOf = new Int32Array(n.w * n.h).fill(-2);
+    }
     for (const g of goals) {
       this.dist[g] = 0;
       this.heap.push(g, 0);
     }
+  }
+
+  /** Hand the arrays back for another field to use (this one must not be used again). */
+  release() {
+    if (this.n.pool.length < MAX_POOL) this.n.pool.push({ dist: this.dist, closed: this.closed, nextOf: this.nextOf });
+  }
+
+  /**
+   * Has the search reached any of these tiles or a neighbor of one? (Every cost it has read is of
+   * a tile next to one it reached, so if not, the change can't have made it any different.)
+   */
+  near(tiles: number[]): boolean {
+    const { n, dist } = this;
+    for (const t of tiles) {
+      const x = t % n.w, y = (t - x) / n.w;
+      for (let yy = Math.max(0, y - 1); yy <= Math.min(n.h - 1, y + 1); yy++)
+        for (let xx = Math.max(0, x - 1); xx <= Math.min(n.w - 1, x + 1); xx++) if (dist[yy * n.w + xx] !== Infinity) return true;
+    }
+    return false;
   }
 
   private cost(i: number): number {
@@ -219,13 +274,18 @@ export class FlowField {
     return this.n.ground[i];
   }
 
-  /** Expand until tile `i` is settled. Returns its distance (Infinity if unreachable). */
+  /**
+   * Expand until tile `i` is settled. Returns its distance (Infinity if unreachable, NaN if this
+   * tick's search budget ran out first: ask again next tick).
+   */
   ensure(i: number): number {
     const { n, dist, closed, heap } = this;
     const w = n.w, h = n.h;
     while (!closed[i] && heap.size) {
+      if (n.budget <= 0) return NaN;
       const j = heap.pop();
       if (closed[j]) continue;
+      n.budget--;
       closed[j] = 1;
       const x = j % w, y = (j - x) / w;
       const cj = this.cost(j) || 10;
@@ -262,6 +322,7 @@ export class FlowField {
     // Dijkstra settles tiles in order of distance, so once this tile is settled every neighbor
     // closer to the goal is too: the answer can't change and is worth keeping
     const here = this.ensure(i);
+    if (Number.isNaN(here)) return -1;
     if (here === 0 || here === Infinity) return (this.nextOf[i] = -1);
     let best = -1, bd = here;
     for (let k = 0; k < 8; k++) {
@@ -310,6 +371,7 @@ function cachedField(n: Nav, key: string, make: () => FlowField): FlowField {
     if (n.fields.size >= MAX_FIELDS) {
       let old = '', oldest = Infinity;
       for (const [k, g] of n.fields) { const t = lastUse.get(g) ?? 0; if (t < oldest) { oldest = t; old = k; } }
+      n.fields.get(old)?.release();
       n.fields.delete(old);
     }
     f = make();

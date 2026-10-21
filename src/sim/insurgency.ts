@@ -85,7 +85,7 @@ export function dropPartisans(s: MatchState, p: Player, c: City, ev: SimEvent[])
     const a = (i / kinds.length) * Math.PI * 2 + c.id;
     const r = 2 + Math.floor(i / 6);
     const t = nearestPassable(n, 'ground', Math.floor(c.x + 0.5 + Math.cos(a) * r), Math.floor(c.y + 0.5 + Math.sin(a) * r), 6);
-    if (t) { spawnUnit(s, kind, p.id, t[0] + 0.5, t[1] + 0.5).hide = s.tick + sec(INSURGENCY.hidden); count++; }
+    if (t) { spawnUnit(s, kind, p.id, t[0] + 0.5, t[1] + 0.5, true).hide = s.tick + sec(INSURGENCY.hidden); count++; }
   });
   p.insurgeAt = s.tick + sec(INSURGENCY.every);
   ev.push({ e: 'insurge', p: p.id, city: c.id, n: count });

@@ -4,7 +4,7 @@ import { ACES, CONTRACTS } from '../data/rules';
 import { aceName, isAce } from '../sim/aces';
 import { UNITS } from '../data/units';
 import { BUILDINGS } from '../data/buildings';
-import { PALETTE, C, rgba } from '../data/palette';
+import { PALETTE, PALETTE_RGB, C, rgba } from '../data/palette';
 import { captureRadius } from '../sim/cities';
 import type { Building, City, MatchState, Unit } from '../sim/types';
 import { TICK_RATE } from '../sim/types';
@@ -45,6 +45,8 @@ export interface WorldView {
   alpha: number;
   time: number;
   ui: number;
+  /** leave out the city names (the science finale has burnt the island) */
+  noLabels?: boolean;
 }
 
 interface Item { y: number; draw: () => void; unit?: Unit }
@@ -52,11 +54,18 @@ interface Item { y: number; draw: () => void; unit?: Unit }
 /** a smoke screen: each puff's opacity at its heart, and the dithered alpha levels it is drawn in */
 const SMOKE_ALPHA = 0.45;
 const SMOKE_LEVELS = [0, 0.25, 0.5, 0.7];
+/** a smoke screen's dithered cells are worked out this often (seconds) and reused in between */
+const SMOKE_REFRESH = 0.1;
 
 /** health bars stay up this long after a hit */
 const HURT_SHOW_MS = 3000;
 /** how dark full night gets (outside the pools of light) */
-const NIGHT_ALPHA = 0.5;
+const NIGHT_ALPHA = 0.35;
+/**
+ * The night layer is redrawn this often (ms), over the view plus a margin of this many cells on
+ * every side, and reused in between (it is anchored to the world, so panning just moves it).
+ */
+const NIGHT_REFRESH_MS = 100, NIGHT_MARGIN = 24;
 
 /** Text with a 1-pixel dark outline all round, readable on any terrain. */
 function outlined(ctx: CanvasRenderingContext2D, str: string, x: number, y: number, color: string, ui: number) {
@@ -244,7 +253,8 @@ export class WorldRenderer {
       }
     }
     const smokes = s.effects.filter((fx2) => fx2.k === 'smoke' && inView(fx2.x, fx2.y, fx2.r + 2));
-    for (const fx2 of smokes) this.smoke(ctx, fx2, cam, v);
+    if (!cam.strategic) for (const fx2 of smokes) this.smoke(ctx, fx2, cam, v);
+    for (const [k, c] of this.smokeCache) if (v.time - c.used > 1) this.smokeCache.delete(k);
     // the units in the smoke keep their bars, stars and names on top of it
     if (smokes.length && !cam.strategic) for (const it of items) {
       const u = it.unit;
@@ -256,7 +266,7 @@ export class WorldRenderer {
     const dark = darkness(s);
     this.ambient.drawClouds(ctx, cam, v.time, dark, s.weather.rain);
     fx.draw(ctx, cam);
-    for (const c of s.cities) if (inView(c.x, c.y, 6) && (fog.isExplored(c.x, c.y) || s.setup.fog === 'off')) this.cityLabel(ctx, s, c, cam, v);
+    if (!v.noLabels) for (const c of s.cities) if (inView(c.x, c.y, 6) && (fog.isExplored(c.x, c.y) || s.setup.fog === 'off')) this.cityLabel(ctx, s, c, cam, v);
 
     // ---- aircraft (shadow, then plane) above everything on the ground
     for (const u of air) {
@@ -334,27 +344,49 @@ export class WorldRenderer {
   }
 
   /**
-   * Night: a blue-dark layer with soft holes around cities, your buildings and your units, and a
-   * warm glow on lit cities, so the battlefield stays readable while it reads as night.
-   */
-  /**
    * Night: a blue dark with pools of light around the viewer's team and the cities they have
-   * seen, and a warm glow over cities. Zoomed in, both are drawn on a small canvas of art-pixel
-   * cells anchored to the world and dithered (see dither.ts), so they read as pixel art.
+   * seen, and a warm glow over cities, drawn on a small canvas of art-pixel cells anchored to the
+   * world and dithered (see dither.ts), so they read as pixel art. The strategic view stays clear.
    */
   private drawNight(ctx: CanvasRenderingContext2D, s: MatchState, cam: Camera, dark: number, v: WorldView, explored: (x: number, y: number) => boolean) {
-    const z = cam.z;
-    // the cell grid: whole cells of CELL art pixels, starting at a world-aligned cell left of and above the screen
-    const cell = cam.strategic ? 1 : CELL * z;
-    const per = cam.strategic ? 1 : TILE / CELL;
-    const gx = cam.strategic ? 0 : Math.floor(cam.wx(0) * per), gy = cam.strategic ? 0 : Math.floor(cam.wy(0) * per);
-    const ox = cam.strategic ? 0 : cam.sx(gx / per), oy = cam.strategic ? 0 : cam.sy(gy / per);
-    const w = Math.ceil((cam.w - ox) / cell) + 1, h = Math.ceil((cam.h - oy) / cell) + 1;
+    if (cam.strategic) return;
+    const z = cam.z, cell = CELL * z, per = TILE / CELL;
+    // the view in world-aligned cells of CELL art pixels
+    const gx = Math.floor(cam.wx(0) * per), gy = Math.floor(cam.wy(0) * per);
+    const vw = Math.ceil(cam.w / cell) + 1, vh = Math.ceil(cam.h / cell) + 1;
+    const nl = this.night, now = performance.now();
+    const key = `${z}|${vw}|${vh}|${Math.round(dark * 50)}`;
+    const inside = gx >= nl.gx && gy >= nl.gy && gx + vw <= nl.gx + nl.w && gy + vh <= nl.gy + nl.h;
+    if (key !== nl.key || !inside || now - nl.at > NIGHT_REFRESH_MS) {
+      nl.key = key;
+      nl.at = now;
+      nl.gx = gx - NIGHT_MARGIN;
+      nl.gy = gy - NIGHT_MARGIN;
+      nl.w = vw + NIGHT_MARGIN * 2;
+      nl.h = vh + NIGHT_MARGIN * 2;
+      this.buildNight(s, cam, dark, v, explored);
+    }
+    const ox = cam.sx(nl.gx / per), oy = cam.sy(nl.gy / per);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(this.nightCanvas!, ox, oy, nl.w * cell, nl.h * cell);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.drawImage(this.glowCanvas!, ox, oy, nl.w * cell, nl.h * cell);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /** where the night layer was last drawn: its world cell origin and size, when, and for what view */
+  private night = { gx: 0, gy: 0, w: 0, h: 0, at: 0, key: '' };
+
+  /** Draw the night layer's darkness (with holes) and the city glow for `this.night`. */
+  private buildNight(s: MatchState, cam: Camera, dark: number, v: WorldView, explored: (x: number, y: number) => boolean) {
+    const z = cam.z, cell = CELL * z, per = TILE / CELL;
+    const { gx, gy, w, h } = this.night;
     if (!this.nightCanvas || this.nightCanvas.width !== w || this.nightCanvas.height !== h) {
       this.nightCanvas = makeCanvas(w, h);
       this.glowCanvas = makeCanvas(w, h);
     }
-    const toX = (wx: number) => (cam.sx(wx) - ox) / cell, toY = (wy: number) => (cam.sy(wy) - oy) / cell;
+    // world tiles to cells of this canvas
+    const toX = (wx: number) => wx * per - gx, toY = (wy: number) => wy * per - gy;
     const n = this.nightCanvas.getContext('2d', { willReadFrequently: true })!;
     n.globalCompositeOperation = 'source-over';
     n.clearRect(0, 0, w, h);
@@ -394,19 +426,11 @@ export class WorldRenderer {
       gl.fillStyle = g;
       gl.fillRect(x - rr, y - rr, rr * 2, rr * 2);
     }
-    if (!cam.strategic) {
-      for (const [c2, lv] of [[n, levels(Math.round(255 * top), 4)], [gl, levels(Math.round(255 * glow), 2)]] as const) {
-        const img = c2.getImageData(0, 0, w, h);
-        ditherAlpha(img, lv, gx, gy);
-        c2.putImageData(img, 0, 0);
-      }
+    for (const [c2, lv] of [[n, levels(Math.round(255 * top), 4)], [gl, levels(Math.round(255 * glow), 2)]] as const) {
+      const img = c2.getImageData(0, 0, w, h);
+      ditherAlpha(img, lv, gx, gy);
+      c2.putImageData(img, 0, 0);
     }
-    ctx.imageSmoothingEnabled = cam.strategic;
-    ctx.drawImage(this.nightCanvas, ox, oy, w * cell, h * cell);
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.drawImage(this.glowCanvas!, ox, oy, w * cell, h * cell);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.imageSmoothingEnabled = false;
   }
 
   private footVisible(fog: Fog, b: Building, s: MatchState): boolean {
@@ -622,35 +646,50 @@ export class WorldRenderer {
 
   /**
    * A smoke screen: soft grey puffs turning slowly, drawn as dithered cells on the world grid (like
-   * the fog and the night) so it stays pixel art.
+   * the fog and the night) so it stays pixel art. The cells go on a small canvas, one pixel each,
+   * redone every SMOKE_REFRESH seconds and scaled up onto the screen.
    */
   private smoke(ctx: CanvasRenderingContext2D, e: { x: number; y: number; r: number }, cam: Camera, v: WorldView) {
-    const puffs = Array.from({ length: 7 }, (_, i) => {
-      const a = i * 0.9 + v.time * 0.3, r = e.r * (0.4 + (i % 3) * 0.25);
-      return { x: e.x + Math.cos(a) * r * 0.5, y: e.y + Math.sin(a) * r * 0.5, r: r * 0.6 };
-    });
     const per = TILE / CELL, R = e.r * 1.2, cs = CELL * cam.z;
-    const byLevel = new Map<number, [number, number][]>();
-    for (let gy = Math.floor((e.y - R) * per); gy <= Math.ceil((e.y + R) * per); gy++)
-      for (let gx = Math.floor((e.x - R) * per); gx <= Math.ceil((e.x + R) * per); gx++) {
-        const wx = (gx + 0.5) / per, wy = (gy + 0.5) / per;
-        // each puff a soft disc; overlapping puffs thicken (as the old translucent circles did)
-        let clear = 1;
-        for (const p of puffs) {
-          const d = Math.hypot(wx - p.x, wy - p.y);
-          if (d < p.r) clear *= 1 - SMOKE_ALPHA * Math.min(1, (p.r - d) / (p.r * 0.35));
+    const gx0 = Math.floor((e.x - R) * per), gy0 = Math.floor((e.y - R) * per);
+    const gw = Math.ceil((e.x + R) * per) - gx0 + 1, gh = Math.ceil((e.y + R) * per) - gy0 + 1;
+    const key = `${e.x},${e.y},${e.r}`;
+    let c = this.smokeCache.get(key);
+    if (!c || v.time - c.at > SMOKE_REFRESH) {
+      const canvas = c && c.c.width === gw && c.c.height === gh ? c.c : makeCanvas(gw, gh);
+      const puffs = Array.from({ length: 7 }, (_, i) => {
+        const a = i * 0.9 + v.time * 0.3, r = e.r * (0.4 + (i % 3) * 0.25);
+        return { x: e.x + Math.cos(a) * r * 0.5, y: e.y + Math.sin(a) * r * 0.5, r: r * 0.6 };
+      });
+      const g = canvas.getContext('2d')!;
+      const img = g.createImageData(gw, gh), px = img.data;
+      const [cr, cg, cb] = PALETTE_RGB[C.pebble];
+      for (let j = 0; j < gh; j++)
+        for (let i = 0; i < gw; i++) {
+          const gx = gx0 + i, gy = gy0 + j;
+          const wx = (gx + 0.5) / per, wy = (gy + 0.5) / per;
+          // each puff a soft disc; overlapping puffs thicken (as the old translucent circles did)
+          let clear = 1;
+          for (const p of puffs) {
+            const d = Math.hypot(wx - p.x, wy - p.y);
+            if (d < p.r) clear *= 1 - SMOKE_ALPHA * Math.min(1, (p.r - d) / (p.r * 0.35));
+          }
+          const lv = dither(1 - clear, SMOKE_LEVELS, gx, gy);
+          if (!lv) continue;
+          const o = (j * gw + i) * 4;
+          px[o] = cr; px[o + 1] = cg; px[o + 2] = cb; px[o + 3] = Math.round(lv * 255);
         }
-        const lv = dither(1 - clear, SMOKE_LEVELS, gx, gy);
-        if (!lv) continue;
-        let list = byLevel.get(lv);
-        if (!list) byLevel.set(lv, (list = []));
-        list.push([Math.round(cam.sx(gx / per)), Math.round(cam.sy(gy / per))]);
-      }
-    for (const [lv, cells] of byLevel) {
-      ctx.fillStyle = rgba(C.pebble, lv);
-      for (const [x, y] of cells) ctx.fillRect(x, y, cs, cs);
+      g.putImageData(img, 0, 0);
+      c = { c: canvas, at: v.time, used: v.time };
+      this.smokeCache.set(key, c);
     }
+    c.used = v.time;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(c.c, Math.round(cam.sx(gx0 / per)), Math.round(cam.sy(gy0 / per)), gw * cs, gh * cs);
   }
+
+  /** each smoke screen's cells, by where it is (see `smoke`) */
+  private smokeCache = new Map<string, { c: HTMLCanvasElement; at: number; used: number }>();
 
   private unit(ctx: CanvasRenderingContext2D, s: MatchState, u: Unit, px: number, py: number, cam: Camera, v: WorldView) {
     const z = cam.z;

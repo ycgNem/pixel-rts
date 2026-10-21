@@ -62,11 +62,16 @@ export class HostSession implements Session {
   tick() {
     if (this.paused) return;
     const s = this.state;
-    this.prev.clear();
+    // where every unit was before this tick (for drawing between ticks), updated in place
+    let units = 0;
     for (const id in s.ents) {
       const e = s.ents[id];
-      if (e.t === 'u') this.prev.set(e.id, [e.x, e.y, e.dir]);
+      if (e.t !== 'u') continue;
+      units++;
+      const p = this.prev.get(e.id);
+      if (p) { p[0] = e.x; p[1] = e.y; p[2] = e.dir; } else this.prev.set(e.id, [e.x, e.y, e.dir]);
     }
+    if (this.prev.size > units) for (const id of this.prev.keys()) if (s.ents[id]?.t !== 'u') this.prev.delete(id);
     const cmds = this.queue.splice(0);
     if (this.remote.length) cmds.push(...this.remote.splice(0));
     for (const ai of this.ais) cmds.push(...ai.think(s));

@@ -1,6 +1,7 @@
 // Navigation shortcuts must give exactly the answers of the slow way.
 import { describe, expect, it } from 'vitest';
-import { FlowField, lineWalkable, nav, passable } from '../src/sim/nav';
+import { FlowField, compOf, fieldTo, lineWalkable, nav, nearestPassable, nearestReachable, passable } from '../src/sim/nav';
+import { placeBuilding } from '../src/sim/lifecycle';
 import { match } from './helpers';
 
 /** A tiny deterministic generator for test inputs. */
@@ -49,5 +50,46 @@ describe('navigation', () => {
     const fromB = tiles.slice().reverse().map(([x, y]) => b.next(x, y)).reverse();
     expect(fromB).toEqual(fromA);
     expect(tiles.map(([x, y]) => b.next(x, y))).toEqual(fromA);
+  });
+
+  it('a field kept through a building going up elsewhere answers exactly like a new one; one near it is dropped', () => {
+    const s = match({ seed: 9, mapType: 'pangaea', mapSize: 'medium' });
+    let n = nav(s);
+    const a = s.map.starts[0], b = s.map.starts[1];
+    const [gx, gy] = nearestPassable(n, 'ground', Math.floor(a.x) + 6, Math.floor(a.y) + 6)!;
+    const [sx, sy] = nearestReachable(n, 'ground', gx + 4, gy + 4, compOf(n, 'ground', gx, gy))!;
+    const f = fieldTo(n, 'ground', gx, gy);
+    // a short search around the goal only
+    expect(f.ensure(sy * n.w + sx)).toBeLessThan(Infinity);
+    placeBuilding(s, 'barracks', 1, Math.floor(b.x) + 5, Math.floor(b.y) + 5, 1);
+    n = nav(s);
+    expect(fieldTo(n, 'ground', gx, gy)).toBe(f);
+    const fresh = new FlowField(n, 'ground', [gy * n.w + gx]);
+    const r = lcg(3);
+    for (let i = 0; i < 2000; i++) {
+      const x = Math.floor(r() * n.w), y = Math.floor(r() * n.h);
+      if (!passable(n, 'ground', x, y)) continue;
+      expect(f.next(x, y), `(${x},${y})`).toBe(fresh.next(x, y));
+      expect(f.dist[y * n.w + x]).toBe(fresh.dist[y * n.w + x]);
+    }
+    // a building beside the goal: that field is thrown away
+    placeBuilding(s, 'barracks', 1, gx + 1, gy - 1, 1);
+    n = nav(s);
+    expect(fieldTo(n, 'ground', gx, gy)).not.toBe(f);
+  });
+
+  it('a search cut short by the tick budget carries on to the same answer', () => {
+    const s = match({ seed: 9, mapType: 'lakes', mapSize: 'medium' });
+    const n = nav(s);
+    const goal = s.map.starts[0], far = s.map.starts[1];
+    // just below each HQ
+    const g = (Math.floor(goal.y) + 4) * n.w + Math.floor(goal.x);
+    const t = (Math.floor(far.y) + 4) * n.w + Math.floor(far.x);
+    const a = new FlowField(n, 'ground', [g]), b = new FlowField(n, 'ground', [g]);
+    n.budget = 500;
+    expect(a.ensure(t)).toBeNaN();
+    n.budget = Infinity;
+    expect(a.ensure(t)).toBe(b.ensure(t));
+    expect(a.ensure(t)).toBeLessThan(Infinity);
   });
 });

@@ -233,12 +233,35 @@ export function drawText(
 }
 
 function drawRaw(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, color: string, scale: number): number {
+  if (!s) return 0;
+  const line = lineFor(s, color);
+  ctx.drawImage(line, 0, 0, line.width, FONT_H, x, y, line.width * scale, FONT_H * scale);
+  return (line.width + 1) * scale;
+}
+
+/**
+ * Whole strings, drawn glyph by glyph once per color and kept: most text on screen is the same
+ * from one frame to the next, and one image is far cheaper to draw than a glyph at a time.
+ */
+const lines = new Map<string, HTMLCanvasElement>();
+const MAX_LINES = 1000;
+
+function lineFor(s: string, color: string): HTMLCanvasElement {
+  const key = color + '\u0000' + s;
+  let c = lines.get(key);
+  if (c) return c;
+  if (lines.size >= MAX_LINES) lines.clear();
   const atlas = atlasFor(color);
-  let cx = x;
+  c = document.createElement('canvas');
+  c.width = Math.max(1, textWidth(s));
+  c.height = FONT_H;
+  const ctx = c.getContext('2d')!;
+  let cx = 0;
   for (let i = 0; i < s.length; i++) {
     const g = glyphs.get(s[i]) ?? glyphs.get('?')!;
-    if (s[i] !== ' ') ctx.drawImage(atlas, g.ax, g.ay, g.w, FONT_H, cx, y, g.w * scale, FONT_H * scale);
-    cx += (g.w + 1) * scale;
+    if (s[i] !== ' ') ctx.drawImage(atlas, g.ax, g.ay, g.w, FONT_H, cx, 0, g.w, FONT_H);
+    cx += g.w + 1;
   }
-  return cx - x;
+  lines.set(key, c);
+  return c;
 }

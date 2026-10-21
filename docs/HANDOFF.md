@@ -4,7 +4,32 @@ Running notes for whoever (human or AI session) picks this up next. Newest statu
 
 ## Status
 
-**2026-10-21 (latest) — mega units, work zones, a harsher economy, the rocket finale, lag fixes.**
+**2026-10-21 (latest) — the seventh critic pass, fixed and optimized.** Pushed live. Player-facing
+summary: [PATCH_NOTES.md](PATCH_NOTES.md) ("Smoother, fairer, and the critic's fixes"); the
+decisions log in PLAN.md has every number.
+
+- Mega units: 2 of each (`limit: 2`); both hit every layer and buildings (unchanged weapons).
+  Work zones are twice the area (`WORK_ZONE` r 11.3, 4.2 to 34).
+- Fixed from the critic's list: second Launch Site countdown, building sales by HP with oil back,
+  free units unsellable (`Unit.free`), unreachable cities (`connectCities` in mapgen), seat-to-start
+  turn by seed, host tab-out (`GameLoop.keepAlive`), client glide (`SMOOTHING` in online.ts), D→V
+  hints, feed under the banner, Quick battle not saved, ability labels, one-sided "Beats", finale
+  cloud and labels, AI mega oil, Auto time limit 60 min with 3+ sides. `PROTOCOL_VERSION` 12.
+- Optimized: flow fields (kept across building changes when untouched, pooled, `NAV_BUDGET`
+  40,000 steps a tick, 4x4 chase blocks), night layer at 10 Hz, smoke canvases, frontier edges,
+  cached text lines, one-pass `incomes()`, fewer allocations. Probes: `scratchpad/perf/simspike.ts`
+  style tick profile (copy of critic7's), `node e2e/out/nightperf.mjs` (ignored folder).
+- Checks: 166 unit tests; e2e smoke, controls, orders (its Quick battle click now aims at the left
+  half of the row, beside Sandbox), overlap pass; `npm run build` ok.
+- Open from the critic (not done): why the start laid out first wins most 1v1s (seats are now
+  turned by the seed, so it is a coin flip which seat gets it; suspects: something in mapgen that
+  favours `starts[0]`); naval maps stall with AIs capped on supply and oil; small windows (960x540)
+  get UI scale 1 and tiny text; a "next goal" chip after First Orders; the AI still rarely fields
+  mega units (oil income 75-225/min); its twist ideas (flagship mega units with a bounty, oil
+  strikes in the middle, a staged Launch Site). Its balance numbers were not applied because they
+  undo prices the user set.
+
+**2026-10-21 — mega units, work zones, a harsher economy, the rocket finale, lag fixes.**
 Live on GitHub Pages. Player-facing summary: [PATCH_NOTES.md](PATCH_NOTES.md)
 ("Mega units, work zones and a rocket that ends the world"); the decisions log in PLAN.md has the
 numbers.

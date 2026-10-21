@@ -2,6 +2,37 @@
 
 Newest first. Play at https://ycgnem.github.io/pixel-rts/
 
+## 2026-10-21 (later): Smoother, fairer, and the critic's fixes
+
+- **Smoother big games.** Units work out their paths without stalling the game. In a 6-player
+  Large match the ticks that took over 15 ms (40 to 50 every 5 minutes, the worst 70 ms) are
+  nearly gone, and the worst is now 16 ms. Night, smoke screens, the zoomed-out view and text are
+  about half as costly to draw.
+- **Online:** the host can switch to another tab without freezing the match for everyone, and
+  everyone else's units glide smoothly through small hiccups in the connection.
+- **Mega units:** at most **2 of each**, and both can attack anything: land, sea, air and
+  buildings.
+- **Builder work zones** cover twice the ground: a click makes an 11-tile zone, and a drag sizes
+  it from 4 to 34 tiles.
+- **Fairer maps.** Which start you get is picked by the map's seed, so the host (or you, against
+  the AI) no longer always gets the same one. Every city can be reached on foot: a city walled in
+  by mountains and the river gets a pass cut to it.
+- **Selling a building** pays back half its cash **and oil**, less any damage. Units that came
+  free (partisans, paradrops, rallies) can't be sold for cash.
+- **A second Launch Site** finished during another rocket's countdown starts its own countdown
+  once that one is over (it used to wait forever).
+- **Time limit Auto** is now 60 minutes in a game with three or more sides.
+- **Fixes and polish:**
+  - The partisan-drop hints said D; the key is V.
+  - Messages no longer hide under the rocket countdown.
+  - Quick battle no longer replaces your skirmish setup, and never starts as a sandbox.
+  - Ability buttons read Salvo, Boost, Crush and Bombs.
+  - Matchup tips no longer claim a unit "beats" something that would never fight it.
+  - The finale's mushroom cloud billows and fades, and city names no longer poke out of the burnt
+    island.
+  - The AI keeps oil it is saving for a mega unit instead of selling it.
+  - Nights are a little lighter, and the zoomed-out view stays clear at night.
+
 ## 2026-10-21: Mega units, work zones and a rocket that ends the world
 
 - **Two mega units**, each $1,000 + 1,500 oil. You can have **at most 2 of each** at a time,

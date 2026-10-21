@@ -7,7 +7,7 @@ import { T, TERRAIN } from '../data/terrain';
 import type { Ent, MatchState, Unit } from './types';
 import { DT } from './types';
 import { distTo, sec } from './world';
-import { nav, fieldTo, fieldToBuilding, lineWalkable, passable, nearestPassable, type Nav, type FlowField } from './nav';
+import { nav, fieldTo, fieldToBuilding, lineWalkable, passable, nearestPassable, compOf, NAV_BUDGET, type Nav, type FlowField } from './nav';
 import { canFireAt } from './combat';
 import { hasPerk, modMul } from './mods';
 import { groundWeatherMul, stormy } from './weather';
@@ -100,9 +100,18 @@ function goalForEnt(s: MatchState, n: Nav, u: Unit, t: Ent): Goal {
     const d = BUILDINGS[t.kind];
     return { x: t.x, y: t.y, field: () => fieldToBuilding(n, layer, t.id, t.tx, t.ty, d.w, d.h), arrive: 0 };
   }
+  // a unit: one field per CHASE_BLOCK-square block it stands in rather than per tile, so a chase
+  // doesn't start a new search at every step (the last stretch is walked straight at it); the
+  // target's own tile when the block's middle is on other ground
   const tx = Math.floor(t.x), ty = Math.floor(t.y);
-  return { x: t.x, y: t.y, field: () => fieldTo(n, layer, tx, ty), arrive: 0 };
+  const bx = Math.min(n.w - 1, tx - (tx % CHASE_BLOCK) + (CHASE_BLOCK >> 1)), by = Math.min(n.h - 1, ty - (ty % CHASE_BLOCK) + (CHASE_BLOCK >> 1));
+  const c = compOf(n, layer, bx, by);
+  const [gx, gy] = c >= 0 && c === compOf(n, layer, tx, ty) ? [bx, by] : [tx, ty];
+  return { x: t.x, y: t.y, field: () => fieldTo(n, layer, gx, gy), arrive: 0 };
 }
+
+/** chase fields are shared by targets in the same block of this many tiles square */
+const CHASE_BLOCK = 4;
 
 function goalForPoint(n: Nav, layer: UnitDef['layer'], x: number, y: number, gx: number, gy: number, arrive = 0.12): Goal {
   return { x, y, field: () => fieldTo(n, layer, gx, gy), arrive };
@@ -173,6 +182,15 @@ export function stepMovement(s: MatchState) {
   const n = nav(s);
   const storm = stormy(s);
   sepGrid(s, n);
+  n.budget = NAV_BUDGET;
+  try {
+    moveAll(s, n, storm);
+  } finally {
+    n.budget = Infinity;
+  }
+}
+
+function moveAll(s: MatchState, n: Nav, storm: boolean) {
   for (const id in s.ents) {
     const u = s.ents[id];
     if (u.t !== 'u' || u.inside) continue;
@@ -217,6 +235,11 @@ function steer(s: MatchState, n: Nav, u: Unit, d: UnitDef, g: Goal): boolean {
       const f = g.field();
       const cx = Math.floor(u.x), cy = Math.floor(u.y);
       const here = f.ensure(cy * n.w + cx);
+      // the path isn't worked out yet (this tick's search budget is spent): wait for it
+      if (Number.isNaN(here)) {
+        separate(s, n, u, d, false);
+        return false;
+      }
       if (here === Infinity) {
         // unreachable: give up on this goal
         return true;

@@ -11,11 +11,11 @@ import { tradeBlocked, tradeQuote } from '../sim/exchange';
 import { powerCost, supplyDropCash } from '../sim/powers';
 import type { Building, City, MatchState, SimEvent, Unit } from '../sim/types';
 import { TICK_RATE } from '../sim/types';
-import { unitMaxHp, buildingCap, buildingCount, buildingMaxHp, unitCost, unitCount, unitSellValue, hqOf, allied, exileCapital, insurgent, limitReached, missingBuilding } from '../sim/world';
+import { unitMaxHp, buildingCap, buildingCount, buildingMaxHp, buildingSellValue, unitCost, unitCount, unitSellValue, hqOf, allied, exileCapital, insurgent, limitReached, missingBuilding } from '../sim/world';
 import { charges, chestTroops, dropBlocked, squadProgress } from '../sim/insurgency';
 import { bidBlocked, jobReward, minBid, supplyFloor, topBid } from '../sim/contracts';
 import type { ContractKind } from '../sim/types';
-import { incomeOf, supplyCap, supplyUsed, techBlocked, techCost, TECH_BY_ID, cityIncome } from '../sim/economy';
+import { incomeOf, supplyCap, supplyUsed, techBlocked, techCost, TECH_BY_ID, cityIncome, type Income } from '../sim/economy';
 import { captureRadius, cityTrains } from '../sim/cities';
 import { darkness } from '../sim/weather';
 import { score, supremacyFrom, supremacyShare, timeLimitOf } from '../sim/victory';
@@ -116,6 +116,17 @@ export class Hud {
   private mmDrag = false;
 
   constructor(private d: HudDeps) {}
+
+  /** your income, worked out once a tick (the top bar and research window show it every frame) */
+  private myIncome(): Income {
+    if (this.incAt !== this.s.tick) {
+      this.incAt = this.s.tick;
+      this.inc = incomeOf(this.s, this.me);
+    }
+    return this.inc;
+  }
+  private incAt = -1;
+  private inc: Income = { cash: 0, oil: 0, science: 0, cp: 0 };
 
   get s(): MatchState {
     return this.d.session.state;
@@ -363,7 +374,7 @@ export class Hud {
     if (ctl.mode.m === 'place' && ctl.placeWhy) {
       ui.textCenter(cap(ctl.placeWhy), ui.mx, ui.my + 14, COL.red);
     }
-    if (this.d.loop.paused || this.d.session.paused) ui.textCenter('PAUSED', ui.w / 2, TOP_H + 30, COL.gold);
+    if (this.d.loop.paused || this.d.session.paused) ui.textCenter('PAUSED', ui.w / 2, this.launchShown() ? TOP_H + LAUNCH_H + 30 : TOP_H + 30, COL.gold);
 
     if (this.panel === 'research') this.research();
     else if (this.panel === 'help') this.help();
@@ -411,7 +422,7 @@ Mines earn cash for the rest of the match.`;
     ui.rect(0, 0, ui.w, TOP_H, COL.shadow);
     ui.rect(0, TOP_H - 1, ui.w, 1, COL.edge);
     ui.block(0, 0, ui.w, TOP_H);
-    const inc = incomeOf(s, this.me);
+    const inc = this.myIncome();
     let x = 4;
     const y = 3;
     const item = (icon: string, iconCol: string, main: string, sub: string, tip: string, mainCol = COL.white, subCol = COL.dim) => {
@@ -439,7 +450,7 @@ Mines earn cash for the rest of the match.`;
       const alive = Object.values(s.ents).filter((e) => e.t === 'u' && e.owner === this.me).length;
       item(ICON.supply, COL.green, `${alive} partisans`, '', 'Your insurgents still in the field.');
       const n = charges(s, p);
-      item(ICON.cp, COL.gold, n ? `${n} squad${n > 1 ? 's' : ''} ready` : `drop in ${clock(p.insurgeAt - s.tick)}`, '', `Insurgency: select a neutral city (or one you once held) and press D.\nA squad is banked every ${INSURGENCY.every}s, up to ${INSURGENCY.maxCharges}; a drop sends them all.`, n ? COL.gold : COL.light);
+      item(ICON.cp, COL.gold, n ? `${n} squad${n > 1 ? 's' : ''} ready` : `drop in ${clock(p.insurgeAt - s.tick)}`, '', `Insurgency: select a neutral city (or one you once held) and press V.\nA squad is banked every ${INSURGENCY.every}s, up to ${INSURGENCY.maxCharges}; a drop sends them all.`, n ? COL.gold : COL.light);
     }
     item(ICON.cp, COL.gold, `${p.cp.toFixed(1)}`, `/${COMMAND.max}`, `Command Points +${(inc.cp * 60).toFixed(1)}/m\nSpend them on Command Powers (Tab). Your HQ and cities make them.`);
 
@@ -477,16 +488,22 @@ Mines earn cash for the rest of the match.`;
    * A rocket is counting down: a big clock under the top bar for everyone, green for your side's
    * and red for a rival's, blinking and beeping near the end. Click it to look at the pad.
    */
+  /** Is the rocket countdown banner on screen? */
+  private launchShown(): boolean {
+    const s = this.s;
+    return !!s.launch && !!s.ents[s.launch.id] && !s.over;
+  }
+
   private launchBanner(now: number) {
     const ui = this.ui, s = this.s, l = s.launch;
     const site = l ? s.ents[l.id] : undefined;
-    if (!l || !site || s.over) return;
+    if (!l || !site || !this.launchShown()) return;
     const ours = allied(s, site.owner, this.me);
     const left = Math.max(0, l.done - s.tick), secs = Math.ceil(left / TICK_RATE);
     const total = VICTORY.launchTime * TICK_RATE;
     const late = secs <= 30, blink = late && Math.floor(now / 250) % 2 === 0;
     const col = ours ? COL.green : COL.red;
-    const w = 200, h = 52, x = Math.round(ui.w / 2 - w / 2), y = TOP_H + 3;
+    const w = 200, h = LAUNCH_H, x = Math.round(ui.w / 2 - w / 2), y = TOP_H + 3;
     ui.panel(x, y, w, h);
     const edge = blink ? COL.white : col;
     ui.rect(x, y, w, 1, edge); ui.rect(x, y + h - 1, w, 1, edge); ui.rect(x, y, 1, h, edge); ui.rect(x + w - 1, y, 1, h, edge);
@@ -969,13 +986,14 @@ Mines earn cash for the rest of the match.`;
         if (ui.button(bx, by, BTN_W, BTN_H, { label: 'Rally', hotkey: 'KeyY', tip: 'Set rally point\nNew units go here. Or right-click the map.', active: ctl.mode.m === 'rally' })) ctl.mode = { m: 'rally' };
       }
       // sell every selected finished building (never the HQ)
-      const sale = bs.filter((o) => o.kind !== 'hq' && o.built >= 1);
+      const sale = bs.filter((o) => buildingSellValue(s, o));
       if (sale.length) {
         const [bx, by] = slot(11);
         const armed = performance.now() - this.sellArmed < 2500;
-        const refund = sale.reduce((a, o) => a + Math.floor(BUILDINGS[o.kind].cost.cash * PRODUCTION.sellRefund), 0);
+        const vals = sale.map((o) => buildingSellValue(s, o)!);
+        const cash = vals.reduce((a, v) => a + v.cash, 0), oil = vals.reduce((a, v) => a + v.oil, 0);
         const what = sale.length > 1 ? `${sale.length} buildings` : d.name;
-        if (ui.button(bx, by, BTN_W, BTN_H, { label: armed ? 'Sure?' : 'Sell', hotkey: 'KeyZ', altKeys: SELL_KEYS, tip: `Sell ${what} for $${refund}\nRefunds ${PRODUCTION.sellRefund * 100}% of the cash cost.\nClick twice, or press Z twice (Delete works too).`, color: armed ? COL.red : undefined })) {
+        if (ui.button(bx, by, BTN_W, BTN_H, { label: armed ? 'Sure?' : 'Sell', hotkey: 'KeyZ', altKeys: SELL_KEYS, tip: `Sell ${what} for $${cash}${oil ? ` + ${oil} oil` : ''}\nRefunds ${PRODUCTION.sellRefund * 100}% of the cash and oil cost, less any damage.\nClick twice, or press Z twice (Delete works too).`, color: armed ? COL.red : undefined })) {
           if (armed) { for (const o of sale) ctl.send({ t: 'sell', p: this.me, id: o.id }); this.sellArmed = 0; }
           else this.sellArmed = performance.now();
         }
@@ -1117,7 +1135,7 @@ Mines earn cash for the rest of the match.`;
     if (ui.button(x, y, w, h, {
       label, hotkey: keys ? 'Key' + def.hotkey : undefined, disabled: locked || cd > 0, cooldown: cd,
       active: ctl.mode.m === 'power' && ctl.mode.power === id,
-      tip: `${def.name}  ${cost} CP\n${def.desc}${id === 'supplyDrop' && !locked ? `\nRight now: $${supplyDropCash(s, this.me)}` : ''}${locked ? `\nUnlocks in the ${ERAS[def.era].name} era` : ''}${def.needsVision ? '\nYou must see the target.' : ''}\nCooldown ${def.cooldown}s`,
+      tip: `${def.name}  ${cost} CP\n${def.desc}${id === 'supplyDrop' && !locked && ui.hover(x, y, w, h) ? `\nRight now: $${supplyDropCash(s, this.me)}` : ''}${locked ? `\nUnlocks in the ${ERAS[def.era].name} era` : ''}${def.needsVision ? '\nYou must see the target.' : ''}\nCooldown ${def.cooldown}s`,
       // a locked power shows the era it opens in, not a cost you can't pay anyway
       badge: w > 40 ? (locked ? ERA_NUMERAL[def.era] : String(cost)) : undefined, badgeColor: locked ? COL.dim : poor ? COL.red : COL.gold,
       color: poor ? COL.dim : undefined,
@@ -1222,7 +1240,7 @@ ${c.name} is not on the coast.` : ''}` })) {
     const n = charges(s, p);
     if (!n) lines.push([`Next squad in ${clock(p.insurgeAt - s.tick)}`, COL.light]);
     else {
-      lines.push([`${n}/${INSURGENCY.maxCharges} squads ready: select a city, press D`, Math.floor(performance.now() / 500) % 2 ? COL.gold : COL.white]);
+      lines.push([`${n}/${INSURGENCY.maxCharges} squads ready: select a city, press V`, Math.floor(performance.now() / 500) % 2 ? COL.gold : COL.white]);
       if (n < INSURGENCY.maxCharges) lines.push([`Another squad in ${clock(p.insurgeAt + n * INSURGENCY.every * TICK_RATE - s.tick)}`, COL.light]);
     }
     const chest = Math.floor(p.cash / INSURGENCY.chestCost);
@@ -1238,7 +1256,6 @@ ${c.name} is not on the coast.` : ''}` })) {
     return h + 4;
   }
 
-  /** First-match guidance: a short checklist that ticks itself off, then goes away. */
   // ------------------------------------------------------------------ chat
 
   /** Online: Enter opens a chat line above the command card; incoming lines join the message feed. */
@@ -1268,8 +1285,8 @@ ${c.name} is not on the coast.` : ''}` })) {
     // victory tracker, it drops below it
     const widest = Math.max(0, ...this.msgs.map((m) => textWidth(m.n > 1 ? `${m.text} (x${m.n})` : m.text) + 10));
     const [tx, tb] = this.trackerBox;
-    let y = TOP_H + 4;
-    if (tb > 0 && ui.w / 2 + widest / 2 > tx - 2) y = tb + 3;
+    let y = this.launchShown() ? TOP_H + LAUNCH_H + 6 : TOP_H + 4;
+    if (tb > 0 && ui.w / 2 + widest / 2 > tx - 2) y = Math.max(y, tb + 3);
     this.trackerBox = [ui.w, 0];
     for (const m of this.msgs) {
       const text = m.n > 1 ? `${m.text} (x${m.n})` : m.text;
@@ -1301,7 +1318,7 @@ ${c.name} is not on the coast.` : ''}` })) {
     const colW = 124, w = colW * 4 + 5 * 4, rowH = 23;
     const h = 40 + 8 * rowH + 54;
     let hovered: (typeof TECHS)[number] | null = null;
-    const [x, y] = this.window(w, h, `Research  ${ICON.science} ${Math.floor(p.science)} banked  (+${(incomeOf(s, this.me).science * 60).toFixed(0)}/m)`);
+    const [x, y] = this.window(w, h, `Research  ${ICON.science} ${Math.floor(p.science)} banked  (+${(this.myIncome().science * 60).toFixed(0)}/m)`);
     ERAS.forEach((era, ei) => {
       const cx = x + 4 + ei * (colW + 4);
       const done = p.techs.filter((t) => TECH_BY_ID.get(t)?.era === ei).length;
@@ -1537,7 +1554,9 @@ const cy = (y: number) => y + 11;
 const UNITS_AT: Record<string, string[]> = {};
 for (const u of Object.values(UNITS)) for (const at of u.at) if (at !== 'city') (UNITS_AT[at] ??= []).push(u.id);
 
-const ABILITY_LABEL: Record<string, string> = { digIn: 'Dig', flare: 'Flare', smoke: 'Smoke', barrage: 'Barge', afterburner: 'Burn', sonar: 'Sonar', steamroll: 'Roll', carpet: 'Carpt' };
+const ABILITY_LABEL: Record<string, string> = { digIn: 'Dig', flare: 'Flare', smoke: 'Smoke', barrage: 'Salvo', afterburner: 'Boost', sonar: 'Sonar', steamroll: 'Crush', carpet: 'Bombs' };
+/** height of the rocket countdown banner under the top bar */
+const LAUNCH_H = 52;
 /** a price short enough for a button's corner: 100000 → 100k */
 const short = (n: number) => (n >= 10000 ? `${Math.round(n / 1000)}k` : `${n}`);
 /** Sell (and Cancel) answer to these keys as well as Z */

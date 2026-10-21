@@ -262,6 +262,9 @@ export function generateMap(setup: MatchSetup): GameMap {
     });
   }
 
+  // every city can be reached: on foot from a start, or (on the sea maps) from its own coast
+  connectCities();
+
   // ---- 6. roads between cities and starts
   buildRoads();
 
@@ -283,7 +286,13 @@ export function generateMap(setup: MatchSetup): GameMap {
     c.coastal = coastal;
   }
 
-  return { w, h, terrain, deposits, starts, cities, ...(bridges.length ? { bridges } : {}) };
+  // which seat gets which start: the ring turned by an amount picked from the seed, so seat 0 (the
+  // host, or the human in a skirmish) isn't always on the start that was laid out first; allies
+  // keep their neighbouring starts
+  const turn = (Math.imul(seed ^ 0x9e3779b9, 0x85ebca6b) >>> 0) % n;
+  const seats = starts.map((_, i) => starts[(i + turn) % n]);
+
+  return { w, h, terrain, deposits, starts: seats, cities, ...(bridges.length ? { bridges } : {}) };
 
   // ---- helpers that need the closure ----
 
@@ -435,6 +444,72 @@ export function generateMap(setup: MatchSetup): GameMap {
         if (comp[idx(x, y)] >= 0 && TERRAIN[terrain[idx(x, y)]].ground > 0) break;
         stamp(x, y, 1.5, T.GRASS, (tt) => TERRAIN[tt].ground === 0);
       }
+    }
+  }
+
+  /**
+   * Cut a pass to every city on ground that no start can walk to (and, on the sea maps, that has
+   * no coast to land on either): the cheapest way out to ground that can be reached, through
+   * mountains rather than across water (MAPGEN.cityPass).
+   */
+  function connectCities() {
+    const landWar = type === 'pangaea' || type === 'lakes';
+    const label = new Int32Array(w * h).fill(-1);
+    const good: boolean[] = [];
+    for (let i = 0; i < w * h; i++) {
+      if (label[i] >= 0 || TERRAIN[terrain[i]].ground === 0) continue;
+      const id = good.length;
+      let ok = false;
+      const stack = [i];
+      label[i] = id;
+      while (stack.length) {
+        const j = stack.pop()!;
+        const x = j % w, y = (j - x) / w;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx, ny = y + dy;
+          if (!inside(nx, ny)) continue;
+          const k = idx(nx, ny);
+          if (TERRAIN[terrain[k]].naval) ok ||= !landWar;
+          if (label[k] >= 0 || TERRAIN[terrain[k]].ground === 0) continue;
+          label[k] = id;
+          stack.push(k);
+        }
+      }
+      good.push(ok);
+    }
+    for (const s of starts) if (label[idx(s.x, s.y)] >= 0) good[label[idx(s.x, s.y)]] = true;
+    const o = MAPGEN.cityPass;
+    for (const c of cities) {
+      const from = idx(c.x, c.y);
+      if (label[from] < 0 || good[label[from]]) continue;
+      // Dijkstra over rock (1 a tile) and water (o.water a tile); open ground is free
+      const cost = new Float64Array(w * h).fill(Infinity);
+      const prev = new Int32Array(w * h).fill(-1);
+      const heap = new Heap(4096);
+      cost[from] = 0;
+      heap.push(from, 0);
+      let goal = -1;
+      while (heap.size) {
+        const i = heap.pop();
+        if (label[i] >= 0 && good[label[i]]) { goal = i; break; }
+        const x = i % w, y = (i - x) / w;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx, ny = y + dy;
+          if (!inside(nx, ny)) continue;
+          const j = idx(nx, ny);
+          const t = TERRAIN[terrain[j]];
+          const nc = cost[i] + (t.ground > 0 ? 0 : t.naval ? o.water : 1);
+          if (nc < cost[j]) { cost[j] = nc; prev[j] = i; heap.push(j, nc); }
+        }
+      }
+      if (goal < 0) continue;
+      for (let i = goal; i >= 0; i = prev[i]) {
+        const x = i % w, y = (i - x) / w;
+        stamp(x, y, o.radius, T.GRASS, (t) => TERRAIN[t].ground === 0);
+      }
+      // the pocket joins the good ground
+      const joined = label[from];
+      good[joined] = true;
     }
   }
 

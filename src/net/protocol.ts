@@ -14,7 +14,9 @@ import type { Building, City, Command, Crate, Effect, MatchSetup, MatchState, Or
 // 10: a 'sellUnits' command (selling troops), and the building cap
 // 11: Mega Tank and Mega Plane (new unit kinds and abilities), Builder work zones ('zone' command, a unit row field);
 //     slimmer snapshots: move rows, and players' and cities' fast-changing numbers apart from the rest
-export const PROTOCOL_VERSION = 11;
+// 12: free units (a unit row flag); maps cut passes to walled-in cities and turn which seat gets
+//     which start by the seed (the same setup builds another map)
+export const PROTOCOL_VERSION = 12;
 /** the host sends a snapshot every this many ticks (20 Hz / 2 = 10 per second) */
 export const SNAP_EVERY = 2;
 
@@ -64,7 +66,7 @@ const BUILDING_INDEX = new Map(BUILDING_KINDS.map((k, i) => [k, i]));
 const ORDER_CODES = ['', 'move', 'amove', 'attack', 'build', 'load', 'unload', 'patrol'] as const;
 
 /**
- * Unit row: id, kind, owner, x*100, y*100, dir*100, hp*10, flags (1 moving, 2 dug in, 4 hold),
+ * Unit row: id, kind, owner, x*100, y*100, dir*100, hp*10, flags (1 moving, 2 dug in, 4 hold, 8 free),
  * vet, inside, order code, order target, ability ready tick, ability until tick, fired tick, target,
  * cargo ids, hidden-until tick, work zone ([x*10, y*10, r*10], or 0 for none).
  */
@@ -120,7 +122,7 @@ function unitRow(u: Unit): UnitRow {
   const [oc, ot] = orderCode(u.order);
   return [
     u.id, UNIT_INDEX.get(u.kind)!, u.owner, Math.round(u.x * 100), Math.round(u.y * 100), Math.round(u.dir * 100), Math.round(u.hp * 10),
-    (u.mv ? 1 : 0) | (u.dug ? 2 : 0) | (u.hold ? 4 : 0), u.vet, u.inside, oc, ot, u.abReady, u.abUntil, u.fired, u.tgt, u.cargo, u.hide,
+    (u.mv ? 1 : 0) | (u.dug ? 2 : 0) | (u.hold ? 4 : 0) | (u.free ? 8 : 0), u.vet, u.inside, oc, ot, u.abReady, u.abUntil, u.fired, u.tgt, u.cargo, u.hide,
     u.post ? [Math.round(u.post.x * 10), Math.round(u.post.y * 10), Math.round(u.post.r * 10)] : 0,
   ];
 }
@@ -316,6 +318,7 @@ export function applySnapshot(s: MatchState, snap: Snapshot): Map<number, [numbe
     u.mv = !!(flags & 1);
     u.dug = !!(flags & 2);
     u.hold = !!(flags & 4);
+    if (flags & 8) u.free = true;
     u.vet = vet;
     u.inside = inside;
     u.order = decodeOrder(oc, ot, u);

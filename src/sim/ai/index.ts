@@ -1032,9 +1032,11 @@ class Brain implements Ai {
     const p = this.p;
     const cash = p.cash - this.spent - this.saving;
     const capped = supplyUsed(s, this.player) >= Math.min(this.lv.maxSupply, supplyCap(s, this.player)) - 2;
+    // oil saved up for a mega unit it can build is not spare
+    const saving = Object.values(UNITS).reduce((m, d) => (d.limit && d.tech && p.techs.includes(d.tech) && !limitReached(s, this.player, d.id) ? Math.max(m, unitCost(s, this.player, d.id).oil) : m), 0);
     const id = p.oil < AI_TRADE.lowOil && cash > AI_TRADE.buyOilCash ? 'buyOil'
       : capped && cash > AI_TRADE.fundCash ? 'fundResearch'
-      : p.oil > AI_TRADE.sellOilAbove && cash < AI_TRADE.lowCash ? 'sellOil' : null;
+      : p.oil > AI_TRADE.sellOilAbove + saving && cash < AI_TRADE.lowCash ? 'sellOil' : null;
     if (id && !tradeBlocked(s, p, id)) this.send({ t: 'trade', p: this.player, trade: id });
   }
 

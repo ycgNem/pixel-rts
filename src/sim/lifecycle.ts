@@ -13,7 +13,8 @@ import { gridAdd } from './spatial';
 import { aceAura, aceDown, isAce } from './aces';
 import { onHomeGround } from './territory';
 
-export function spawnUnit(s: MatchState, kind: string, owner: number, x: number, y: number): Unit {
+/** `free`: it cost nothing (partisans, paradrops, rallies), so it can't be sold. */
+export function spawnUnit(s: MatchState, kind: string, owner: number, x: number, y: number, free = false): Unit {
   const d = UNITS[kind];
   const u: Unit = {
     id: s.nextId++, kind, owner, hp: 1, x, y, t: 'u', dir: Math.PI / 2, order: null, queue: [], tgt: 0,
@@ -21,6 +22,7 @@ export function spawnUnit(s: MatchState, kind: string, owner: number, x: number,
     inside: 0, fired: -100000, hide: 0, gx: x, gy: y, mv: false, _stuck: 0, _best: 1e9, _grp: -1,
   };
   u.hp = unitMaxHp(s, u);
+  if (free) u.free = true;
   s.ents[u.id] = u;
   gridAdd(s, u);
   return u;

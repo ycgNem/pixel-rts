@@ -7,6 +7,7 @@ import type { City, MatchSetup, MatchState, Player, SimEvent } from './types';
 import { TICK_RATE } from './types';
 import { removeEnt, armyValue } from './lifecycle';
 import { enemies, hqOf, sec } from './world';
+import { startLaunch } from './economy';
 import { near } from './spatial';
 
 /** The share of all cities that wins by supremacy in this match (smaller with more teams). */
@@ -153,6 +154,13 @@ export function stepVictory(s: MatchState, ev: SimEvent[]) {
     if (site) return end(s.players[site.owner].team, 'science');
     s.launch = null;
   }
+  // a site that finished while another countdown ran starts its own once that one is over
+  if (!s.launch && s.setup.victory.science && s.tick % TICK_RATE === 0) {
+    for (const id in s.ents) {
+      const b = s.ents[id];
+      if (b.t === 'b' && b.kind === 'launch' && b.built >= 1 && b.hp > 0) { startLaunch(s, b, ev); break; }
+    }
+  }
   // time limit: best score
   const limit = timeLimitOf(s.setup);
   if (limit > 0 && s.tick >= sec(limit)) {
@@ -169,5 +177,6 @@ export function stepVictory(s: MatchState, ev: SimEvent[]) {
 export function timeLimitOf(setup: MatchSetup): number {
   if (setup.timeLimit >= 0) return setup.timeLimit;
   const big = setup.players.length >= VICTORY.autoLimitPlayers || VICTORY.autoLimitMaps.includes(setup.mapType);
-  return big ? VICTORY.autoLimit : 0;
+  if (big) return VICTORY.autoLimit;
+  return new Set(setup.players.map((p) => p.team)).size >= VICTORY.autoLimitTeams ? VICTORY.autoLimitLong : 0;
 }

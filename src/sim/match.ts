@@ -12,7 +12,7 @@ import { AI_RANDOM_STYLES } from '../data/ai';
 import { placeBuilding, spawnUnit, removeEnt, armyValue } from './lifecycle';
 import { sec } from './world';
 import { applyCommand } from './commands';
-import { stepIncome, stepResearch, stepConstruction, stepCrews, stepTraining, stepSandbox, incomeOf } from './economy';
+import { stepIncome, stepResearch, stepConstruction, stepCrews, stepTraining, stepSandbox, incomes } from './economy';
 import { stepCities, stepPartisans, stepResistance } from './cities';
 import { acquireTargets, fireWeapons, stepShots, cityGuns, stepFires, stepMegaAbilities } from './combat';
 import { stepMovement } from './move';
@@ -107,8 +107,10 @@ export function step(s: MatchState, cmds: Command[]): SimEvent[] {
   stepContracts(s, ev);
   stepAutoDig(s);
   // remove the dead
-  for (const id of Object.keys(s.ents)) {
-    const e = s.ents[+id];
+  const dead: number[] = [];
+  for (const id in s.ents) if (s.ents[id].hp <= 0) dead.push(+id);
+  for (const id of dead) {
+    const e = s.ents[id];
     if (e && e.hp <= 0) removeEnt(s, e, ev);
   }
   stepAces(s, ev);
@@ -116,8 +118,9 @@ export function step(s: MatchState, cmds: Command[]): SimEvent[] {
   stepVictory(s, ev);
   stepCoalition(s, ev);
   if (s.tick % (30 * TICK_RATE) === 0) {
+    const all = incomes(s);
     for (const p of s.players) {
-      const inc = incomeOf(s, p.id);
+      const inc = all[p.id];
       const cities = s.cities.filter((c) => c.owner === p.id).length;
       p.stats.history.push([Math.round(armyValue(s, p.id)), Math.round(inc.cash * 60), cities, p.techs.length]);
     }

@@ -172,6 +172,8 @@ export interface Unit extends EntBase {
   mv: boolean;
   /** a Builder's work zone (WORK_ZONE), if it has one */
   post?: WorkZone;
+  /** it came free (partisans, paradrops, rallies), so it can't be sold */
+  free?: boolean;
   /** internal: ticks without progress, best distance so far, group of the last finished move */
   _stuck: number;
   _best: number;

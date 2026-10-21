@@ -106,7 +106,7 @@ export function stepPartisans(s: MatchState) {
     }, 0);
     if (n >= EXILE.partisans) continue;
     const t = nearestPassable(nav(s), 'ground', c.x, c.y + 2, 6);
-    if (t) spawnUnit(s, EXILE.partisanKind, p.id, t[0] + 0.5, t[1] + 0.5);
+    if (t) spawnUnit(s, EXILE.partisanKind, p.id, t[0] + 0.5, t[1] + 0.5, true);
   }
 }
 
@@ -128,7 +128,7 @@ export function stepResistance(s: MatchState, ev: SimEvent[]) {
     if (guards >= RESISTANCE.garrison) continue;
     const t = nearestPassable(nav(s), 'ground', c.x, c.y + 1, 6);
     if (!t) continue;
-    spawnUnit(s, RESISTANCE.kind, c.resistFor, t[0] + 0.5, t[1] + 0.5);
+    spawnUnit(s, RESISTANCE.kind, c.resistFor, t[0] + 0.5, t[1] + 0.5, true);
     c.risen++;
     ev.push({ e: 'resist', p: c.resistFor, city: c.id });
   }

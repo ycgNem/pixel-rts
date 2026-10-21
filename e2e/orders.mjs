@@ -22,12 +22,13 @@ async function open() {
   return page;
 }
 const wait = (page, ms = 350) => page.waitForTimeout(ms);
-/** click Quick battle (the third title button; no save in a fresh browser) */
+/** click Quick battle (the left half of the third title row, beside Sandbox; no save in a fresh browser) */
 async function quickBattle(page) {
   await page.goto(base);
   await wait(page, 2500);
   const ui = await page.evaluate(() => ({ s: window.__app.uiScale / window.__app.dpr, w: window.__app.canvas.width / window.__app.uiScale, h: window.__app.canvas.height / window.__app.uiScale }));
-  const at = [Math.round((ui.w / 2) * ui.s), Math.round((Math.round(ui.h * 0.5) + 48 + 10) * ui.s)];
+  // the title buttons are 140 wide; Quick battle is the left 68 of that row
+  const at = [Math.round((Math.round(ui.w / 2 - 70) + 34) * ui.s), Math.round((Math.round(ui.h * 0.5) + 48 + 10) * ui.s)];
   await page.mouse.move(at[0], at[1]);
   await wait(page, 100);
   await page.mouse.click(at[0], at[1]);

@@ -61,6 +61,7 @@ export class App {
     this.screen = s;
     this.loop.paused = false;
     this.loop.speed = 1;
+    this.loop.keepAlive = false;
   }
 
   private frame(dt: number, alpha: number) {

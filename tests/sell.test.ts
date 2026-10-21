@@ -1,8 +1,11 @@
-// Selling troops: a share of the cost back, less for damaged units (PRODUCTION.unitSellRefund).
+// Selling troops and buildings: a share of the cost back, less for damaged ones
+// (PRODUCTION.unitSellRefund, PRODUCTION.sellRefund), and nothing for units that came free.
 import { describe, expect, it } from 'vitest';
 import { UNITS } from '../src/data/units';
+import { BUILDINGS } from '../src/data/buildings';
 import { PRODUCTION } from '../src/data/rules';
-import { unitCost } from '../src/sim/world';
+import { buildingMaxHp, unitCost } from '../src/sim/world';
+import { placeBuilding, spawnUnit } from '../src/sim/lifecycle';
 import { add, match, openSpot, run } from './helpers';
 
 describe('selling units', () => {
@@ -43,5 +46,34 @@ describe('selling units', () => {
     expect(s.ents[rider.id]).toBeDefined();
     expect(s.ents[merchant.id]).toBeDefined();
     expect(s.players[0].cash - cash).toBeLessThan(1);
+  });
+
+  it("won't buy back a unit that came free (partisans, paradrops, rallies)", () => {
+    const s = match();
+    const { x, y } = openSpot(s);
+    const partisan = spawnUnit(s, 'rifleman', 0, x, y, true);
+    const cash = s.players[0].cash;
+    run(s, 0.05, [{ t: 'sellUnits', p: 0, ids: [partisan.id] }]);
+    expect(s.ents[partisan.id]).toBeDefined();
+    expect(s.players[0].cash - cash).toBeLessThan(1);
+  });
+});
+
+describe('selling buildings', () => {
+  it('refunds half the cash and oil cost, times the share of full HP', () => {
+    const s = match();
+    const { x, y } = openSpot(s);
+    const site = placeBuilding(s, 'launch', 0, Math.floor(x) - 2, Math.floor(y) - 2, 1);
+    site.hp = buildingMaxHp(s, site) / 4;
+    const p = s.players[0];
+    const cash = p.cash, oil = p.oil;
+    run(s, 0.05, [{ t: 'sell', p: 0, id: site.id }]);
+    expect(s.ents[site.id]).toBeUndefined();
+    const c = BUILDINGS.launch.cost, f = PRODUCTION.sellRefund / 4;
+    // one tick of income comes in too
+    expect(p.cash - cash).toBeGreaterThanOrEqual(Math.floor(c.cash * f));
+    expect(p.cash - cash).toBeLessThan(Math.floor(c.cash * f) + 1);
+    expect(p.oil - oil).toBeGreaterThanOrEqual(Math.floor(c.oil * f));
+    expect(p.oil - oil).toBeLessThan(Math.floor(c.oil * f) + 1);
   });
 });

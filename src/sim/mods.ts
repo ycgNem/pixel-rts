@@ -6,14 +6,14 @@ import type { Player } from './types';
 const TECH_BY_ID = new Map(TECHS.map((t) => [t.id, t]));
 const DOC_BY_ID = new Map(DOCTRINES.map((d) => [d.id, d]));
 
-interface ModCache { ver: string; mul: Map<ModKey, number>; add: Map<ModKey, number> }
+interface ModCache { techs: string[]; nTechs: number; docs: string[]; nDocs: number; mul: Map<ModKey, number>; add: Map<ModKey, number> }
 const cache = new WeakMap<Player, ModCache>();
 
 function get(p: Player): ModCache {
-  const ver = p.techs.length + ':' + p.doctrines.join(',');
   let c = cache.get(p);
-  if (c && c.ver === ver) return c;
-  c = { ver, mul: new Map(), add: new Map() };
+  // techs and doctrines are only ever added to (or the lists replaced)
+  if (c && c.techs === p.techs && c.nTechs === p.techs.length && c.docs === p.doctrines && c.nDocs === p.doctrines.length) return c;
+  c = { techs: p.techs, nTechs: p.techs.length, docs: p.doctrines, nDocs: p.doctrines.length, mul: new Map(), add: new Map() };
   const apply = (mods: { key: ModKey; mul?: number; add?: number }[] | undefined) => {
     for (const m of mods ?? []) {
       // bonuses to the same stat add up (+25% and +25% is +50%), so stacks can't run away

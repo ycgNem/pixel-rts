@@ -25,6 +25,24 @@ function groundComponent(m: GameMap, sx: number, sy: number): Uint8Array {
 }
 
 describe('map generator', () => {
+  it('leaves no city where no start can walk to it on the land-war maps (30 seeds each)', () => {
+    const cases: [Parameters<typeof setup>[0], number][] = [
+      [{ mapType: 'pangaea', mapSize: 'small' }, 2], [{ mapType: 'pangaea', mapSize: 'medium' }, 4],
+      [{ mapType: 'lakes', mapSize: 'medium' }, 4], [{ mapType: 'pangaea', mapSize: 'large' }, 6],
+    ];
+    for (const [over, n] of cases)
+      for (let seed = 1; seed <= 30; seed++) {
+        const m = generateMap(setup({ ...over, seed }, n));
+        const st = m.starts[0];
+        const comp = groundComponent(m, Math.floor(st.x), Math.floor(st.y) + 3);
+        for (const c of m.cities) {
+          let ok = false;
+          for (let yy = -1; yy <= 1; yy++) for (let xx = -1; xx <= 1; xx++) if (comp[(c.y + yy) * m.w + c.x + xx]) ok = true;
+          expect(ok, `${over?.mapType} ${over?.mapSize} seed ${seed}: ${c.name}`).toBe(true);
+        }
+      }
+  });
+
   it('is deterministic: the same seed and settings give the same map', () => {
     for (const mapType of ['pangaea', 'continents', 'islands', 'lakes'] as const) {
       const a = generateMap(setup({ seed: 42, mapType, mapSize: 'medium' }, 4));

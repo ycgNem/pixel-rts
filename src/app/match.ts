@@ -163,7 +163,7 @@ export class MatchScreen implements Screen {
 
     const view: WorldView = {
       me, team, selected: this.ctl.selected, hover: this.ctl.hover, hoverCity: this.ctl.hoverCity, selectedCity: this.ctl.selCity,
-      prev: this.session.prev, alpha: a, time: this.time, ui: app.uiScale,
+      prev: this.session.prev, alpha: a, time: this.time, ui: app.uiScale, noLabels: !!this.finale?.blasted,
     };
     ctx.save();
     if (this.fx.shake > 0.5) ctx.translate(Math.round((Math.random() - 0.5) * this.fx.shake), Math.round((Math.random() - 0.5) * this.fx.shake));

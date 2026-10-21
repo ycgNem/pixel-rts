@@ -98,7 +98,12 @@ Everything borrowed gets a twist of our own.
   face the middle. The neutral cities follow one pattern repeated around every start, so each
   player has about as many cities nearest them (tested over 30 seeds per map type). The extra ore
   and oil sit beside each start's own neutral cities in the same turned pattern, so every side of
-  the map holds the same deposits (3 extra ore and 2 extra oil per player).
+  the map holds the same deposits (3 extra ore and 2 extra oil per player). Which start each seat
+  gets is the ring turned by an amount picked from the seed (allies keep neighbouring starts), so
+  seat 0 (the host, or you against the AI) isn't always on the start that was laid out first.
+- **Every city can be reached.** A city walled in by mountains and the river (or, on the sea
+  maps, with no coast to land on) gets a pass cut through the rock to the nearest ground a start
+  can walk to (tested over 30 seeds of each land map).
 - **Map features:** ore deposits (Mines), oil wells (Derricks), **rich ore** in the middle (twice
   the output; contested), a level-3 capital city in the middle, about 3 more neutral cities per
   player (bigger toward the middle), and roads linking cities and starts. Trees, bushes, boulders,
@@ -279,7 +284,7 @@ can't target that class.
 Dug-in infantry take 40% less damage. Units standing in smoke take half damage from range.
 
 **Unit orders:** move, attack, attack-move, stop, hold position, patrol, waypoints (shift), load
-and unload (transports), build and repair (Builders), work zones (Builders), abilities, **sell** (Z twice or click twice: 50% of the cash and oil cost back, times the unit's share of full HP; not merchant ships or a loaded transport; a sold unit doesn't count as lost). Finished buildings sell for 50% of their cash cost the same way. Units fire automatically at
+and unload (transports), build and repair (Builders), work zones (Builders), abilities, **sell** (Z twice or click twice: 50% of the cash and oil cost back, times the unit's share of full HP; not merchant ships or a loaded transport; a sold unit doesn't count as lost; units that came free, such as partisans, paradrops and rallies, can't be sold). Finished buildings sell the same way: 50% of their cash and oil cost, times their share of full HP (never the HQ). Units fire automatically at
 enemies in range.
 
 ---
@@ -446,7 +451,7 @@ explains the conditions.
 - **Insurgency (our twist, a lobby option, on by default):** a player who is out while the match
   goes on keeps fighting. 30 s after the knockout they bank a **squad of 3 partisan Riflemen**,
   and another every 90 s, up to 3 squads. A drop (select a neutral city or one they once held,
-  press D) sends every banked squad at once, so a patient insurgent can strike with 9 men. The
+  press V) sends every banked squad at once, so a patient insurgent can strike with 9 men. The
   cash they were knocked out with becomes a **war chest**: each squad dropped brings a Rocket
   Trooper too, for $250, while it lasts. A cell lands **hidden** (like a submarine) for 15 s, or
   until it fires: no rival and no militia sees it, so its capture starts unopposed.
@@ -475,7 +480,8 @@ explains the conditions.
   under the top bar counts it down for every player (green for your side's rocket, red for a
   rival's; it blinks in the last 30 s, beeps at 1:00, 0:30 and each of the last 10 seconds, and a
   click jumps the camera to the pad, which pulses with a beacon). If the site is destroyed, the
-  countdown stops. When it reaches zero the rocket lifts off and **the whole island it stood on
+  countdown stops. One countdown runs at a time: a site finished during another's countdown
+  starts its own as soon as that one is over. When it reaches zero the rocket lifts off and **the whole island it stood on
   goes up**: a white flash, a shockwave and a firestorm sweeping out over every tile of that
   landmass, leaving it scorched behind the end screen (any key skips the show).
 - **Scrub (our twist):** enemy infantry who hold the ground beside a Launch Site (within 3 tiles of
@@ -489,6 +495,7 @@ explains the conditions.
 - **Time limit:** when time runs out, the highest score wins (cities, techs, army value, and
   destroyed enemy value). The default is **Auto**: 45 minutes in a match of 5 or more players or
   on a Continents or Islands map (big free-for-alls and naval maps were stalling past an hour),
+  else 60 minutes with 3 or more sides (a 4-player free-for-all had no winner at 45 minutes),
   none otherwise; the host can also pick none, 20, 30, 45 or 60 minutes. In the last 10 minutes
   the tracker shows the score race (who wins on time, and your score).
 - **Surrender** from the menu. A hopeless AI surrenders too: after 12:00, with no city, no
@@ -517,7 +524,7 @@ up to 3 at a time. Everyone sees them on the minimap; the first ground unit to t
 cash, oil, science (all worth 25% more per minute of match time), 2 CP, or a veteran star.
 
 **Weather and day/night** (can be turned off): a 6-minute day and 2-minute night; night cuts
-sight by a third. Rain fronts slow ground units by 15%; storms ground all aircraft.
+sight by a third (the strategic view is drawn without the night, so the overview stays clear). Rain fronts slow ground units by 15%; storms ground all aircraft.
 
 ---
 
@@ -704,8 +711,8 @@ The main goal is that the game stays readable at scale.
   and then a flock of birds crosses the view (gulls over the sea), with shadows below.
 - **Cities** look different at each of their 5 levels, so you can read a city's size at a glance.
 - **HUD:** resources across the top, the victory tracker under it, the message feed in the middle
-  (three lines on a dark plate; repeats are merged), a getting-started checklist for the first
-  minutes, powers above the minimap, the command card only when something of yours is selected.
+  (three lines on a dark plate; repeats are merged; it moves below the rocket countdown while
+  that shows), the First Orders card at the top left for a new player, powers above the minimap, the command card only when something of yours is selected.
   A unit's train tooltip and selection panel say what it beats, what it can't hit and what
   counters it, worked out from the unit data and the damage table (a cost-for-cost duel estimate,
   `src/ui/counters.ts`), so they never drift from the balance. Home Front borders are drawn on

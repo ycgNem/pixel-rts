@@ -146,7 +146,10 @@ export function exileCapital(s: MatchState, p: number): City | undefined {
 }
 
 export function hqOf(s: MatchState, p: number): Building | undefined {
-  for (const e of allEnts(s)) if (e.t === 'b' && e.owner === p && e.kind === 'hq') return e;
+  for (const id in s.ents) {
+    const e = s.ents[id];
+    if (e.t === 'b' && e.owner === p && e.kind === 'hq') return e;
+  }
   return undefined;
 }
 
@@ -187,7 +190,17 @@ export function limitReached(s: MatchState, p: number, kind: string): string | n
  * HP), or null when it can't be sold: units nobody trains (merchant ships) and loaded transports.
  */
 export function unitSellValue(s: MatchState, u: Unit): { cash: number; oil: number } | null {
-  if (!UNITS[u.kind].at.length || u.cargo.length) return null;
+  if (!UNITS[u.kind].at.length || u.cargo.length || u.free) return null;
   const c = unitCost(s, u.owner, u.kind), f = PRODUCTION.unitSellRefund * Math.max(0, Math.min(1, u.hp / unitMaxHp(s, u)));
+  return { cash: Math.floor(c.cash * f), oil: Math.floor(c.oil * f) };
+}
+
+/**
+ * What selling a finished building pays: `PRODUCTION.sellRefund` of its cash and oil cost, times
+ * its share of full HP; null for the HQ and unfinished sites.
+ */
+export function buildingSellValue(s: MatchState, b: Building): { cash: number; oil: number } | null {
+  if (b.built < 1 || b.kind === 'hq') return null;
+  const c = BUILDINGS[b.kind].cost, f = PRODUCTION.sellRefund * Math.max(0, Math.min(1, b.hp / buildingMaxHp(s, b)));
   return { cash: Math.floor(c.cash * f), oil: Math.floor(c.oil * f) };
 }

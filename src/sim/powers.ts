@@ -6,7 +6,7 @@ import { AUTO_DIG_EVERY, PERKS } from '../data/techs';
 import { hasPerk } from './mods';
 import type { MatchState, Player, SimEvent, Unit } from './types';
 import { TICK_RATE } from './types';
-import { incomeOf } from './economy';
+import { incomes } from './economy';
 import { sec, teamOf, maxHp, enemies } from './world';
 import { rand, randRange } from './rng';
 import { land } from './combat';
@@ -66,7 +66,7 @@ export function usePower(s: MatchState, p: number, id: PowerId, x: number, y: nu
         const a = (i / PARADROP.count) * Math.PI * 2;
         const t = nearestPassable(n, 'ground', Math.floor(x + Math.cos(a) * 1.2), Math.floor(y + Math.sin(a) * 1.2), 6);
         if (!t) continue;
-        spawnUnit(s, PARADROP.unit, p, t[0] + 0.5, t[1] + 0.5);
+        spawnUnit(s, PARADROP.unit, p, t[0] + 0.5, t[1] + 0.5, true);
       }
       break;
     }
@@ -140,9 +140,10 @@ export function stepEffects(s: MatchState, ev: SimEvent[]) {
 
 /** What a supply drop would pay player p right now (lend-lease: more the further behind they are). */
 export function supplyDropCash(s: MatchState, p: number): number {
-  const mine = incomeOf(s, p).cash;
+  const all = incomes(s);
+  const mine = all[p].cash;
   let top = 0;
-  for (const o of s.players) if (o.alive && enemies(s, p, o.id)) top = Math.max(top, incomeOf(s, o.id).cash);
+  for (const o of s.players) if (o.alive && enemies(s, p, o.id)) top = Math.max(top, all[o.id].cash);
   const gap = Math.max(0, top - mine) * SUPPLY_DROP.gapSeconds;
   return Math.round(Math.min(SUPPLY_DROP.maxCash, SUPPLY_DROP.minCash + gap));
 }

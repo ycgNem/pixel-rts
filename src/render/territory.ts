@@ -21,6 +21,11 @@ export class TerritoryLayer {
   private owner: Int16Array;
   private key = '';
   private tint: HTMLCanvasElement;
+  /**
+   * The frontier, worked out when the claims change: per color, flat [x, y, sides] triples for
+   * each tile with a rival team's ground next door (sides: 1 left, 2 right, 4 up, 8 down).
+   */
+  private edges = new Map<string, number[]>();
 
   constructor(private w: number, private h: number) {
     this.owner = new Int16Array(w * h).fill(-1);
@@ -59,6 +64,24 @@ export class TerritoryLayer {
       img.data[i * 4] = c[0]; img.data[i * 4 + 1] = c[1]; img.data[i * 4 + 2] = c[2]; img.data[i * 4 + 3] = 255;
     }
     ctx.putImageData(img, 0, 0);
+    // the frontier: an edge wherever the tile next door is another team's ground (open country
+    // gets none, so lines don't wander across fields)
+    const owner = this.owner;
+    const team = (o: number) => (o < 0 ? -1 : s.players[o].team);
+    const rival = (i: number, t: number) => owner[i] >= 0 && team(owner[i]) !== t;
+    this.edges.clear();
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x, o = owner[i];
+        if (o < 0) continue;
+        const t = team(o);
+        const sides = (x > 0 && rival(i - 1, t) ? 1 : 0) | (x < w - 1 && rival(i + 1, t) ? 2 : 0) | (y > 0 && rival(i - w, t) ? 4 : 0) | (y < h - 1 && rival(i + w, t) ? 8 : 0);
+        if (!sides) continue;
+        const col = viewUi(s, o);
+        let list = this.edges.get(col);
+        if (!list) this.edges.set(col, (list = []));
+        list.push(x, y, sides);
+      }
   }
 
   draw(ctx: CanvasRenderingContext2D, s: MatchState, cam: Camera, x0: number, y0: number, x1: number, y1: number) {
@@ -68,31 +91,26 @@ export class TerritoryLayer {
       ctx.drawImage(this.tint, cam.sx(0), cam.sy(0), this.w * TILE * z, this.h * TILE * z);
       ctx.globalAlpha = 1;
     }
-    // an edge wherever the tile next door is another team's ground (a frontier; open country gets
-    // none, so lines don't wander across fields): one path per color, dashed in step with the
-    // tiles, over a dark shadow a pixel lower so it reads on grass and forest alike; zoomed in,
-    // where it is big, it steps back
-    const { w, h, owner } = this;
-    const team = (o: number) => (o < 0 ? -1 : s.players[o].team);
-    const rival = (i: number, t: number) => owner[i] >= 0 && team(owner[i]) !== t;
-    // each side's line sits one line-width inside its own ground, so two neighbours show both colors
+    // the frontier (see `edges`): one path per color, dashed in step with the tiles, over a dark
+    // shadow a pixel lower so it reads on grass and forest alike; zoomed in, where it is big, it
+    // steps back. Each side's line sits one line-width inside its own ground, so two neighbours
+    // show both colors
     const lw = Math.max(1, Math.round(z)), len = Math.round(TILE * z), half = lw * 1.5;
+    const vx0 = Math.floor(x0), vx1 = Math.ceil(x1), vy0 = Math.floor(y0), vy1 = Math.ceil(y1);
     const paths = new Map<string, Path2D>();
-    for (let y = Math.max(0, Math.floor(y0)); y <= Math.min(h - 1, Math.ceil(y1)); y++)
-      for (let x = Math.max(0, Math.floor(x0)); x <= Math.min(w - 1, Math.ceil(x1)); x++) {
-        const o = owner[y * w + x];
-        if (o < 0) continue;
-        const t = team(o);
-        const col = viewUi(s, o);
-        let p = paths.get(col);
-        if (!p) { p = new Path2D(); paths.set(col, p); }
+    for (const [col, list] of this.edges) {
+      let p: Path2D | null = null;
+      for (let k = 0; k < list.length; k += 3) {
+        const x = list[k], y = list[k + 1], sides = list[k + 2];
+        if (x < vx0 || x > vx1 || y < vy0 || y > vy1) continue;
+        if (!p) paths.set(col, (p = new Path2D()));
         const sx = cam.sx(x), sy = cam.sy(y);
-        const seg = (ax: number, ay: number, bx: number, by: number) => { p!.moveTo(ax, ay); p!.lineTo(bx, by); };
-        if (x > 0 && rival(y * w + x - 1, t)) seg(sx + half, sy, sx + half, sy + len);
-        if (x < w - 1 && rival(y * w + x + 1, t)) seg(sx + len - half, sy, sx + len - half, sy + len);
-        if (y > 0 && rival((y - 1) * w + x, t)) seg(sx, sy + half, sx + len, sy + half);
-        if (y < h - 1 && rival((y + 1) * w + x, t)) seg(sx, sy + len - half, sx + len, sy + len - half);
+        if (sides & 1) { p.moveTo(sx + half, sy); p.lineTo(sx + half, sy + len); }
+        if (sides & 2) { p.moveTo(sx + len - half, sy); p.lineTo(sx + len - half, sy + len); }
+        if (sides & 4) { p.moveTo(sx, sy + half); p.lineTo(sx + len, sy + half); }
+        if (sides & 8) { p.moveTo(sx, sy + len - half); p.lineTo(sx + len, sy + len - half); }
       }
+    }
     ctx.lineWidth = lw;
     ctx.setLineDash([DASH * z, DASH * z]);
     const alpha = EDGE * (z >= 2 ? CLOSE : 1);

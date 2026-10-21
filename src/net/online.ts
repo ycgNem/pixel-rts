@@ -300,6 +300,9 @@ export class NetHost {
 
 // ---------------------------------------------------------------- client in a match
 
+/** a client's units glide between snapshots over this many snapshot intervals (see `frame`) */
+const SMOOTHING = 1.5;
+
 export class ClientSession implements Session {
   readonly host = false;
   state: MatchState;
@@ -321,7 +324,14 @@ export class ClientSession implements Session {
       if (m.t === 'snap') {
         if (!this.gotFull && !m.s.full) return;
         this.gotFull = true;
+        // each unit glides on from where it is drawn right now, not from the last snapshot's spot,
+        // so a snapshot that comes a little early or late never makes units jump
+        const a = this.frame(), old = this.prev;
         this.prev = applySnapshot(this.state, m.s);
+        for (const [id, p] of this.prev) {
+          const o = old.get(id);
+          if (o) { p[0] = o[0] + (p[0] - o[0]) * a; p[1] = o[1] + (p[1] - o[1]) * a; }
+        }
         this.events.push(...m.s.ev);
         this.lastSnap = performance.now();
       } else if (m.t === 'pause') this.paused = m.on;
@@ -344,8 +354,13 @@ export class ClientSession implements Session {
 
   setPaused() {}
 
+  /**
+   * How far units are between the last two snapshots. The glide takes SMOOTHING snapshot
+   * intervals, so units are still moving when the next snapshot is a little late (they trail the
+   * host by a fraction of an interval instead of stopping and starting).
+   */
   frame(): number {
-    const interval = (SNAP_EVERY / TICK_RATE) * 1000;
+    const interval = (SNAP_EVERY / TICK_RATE) * 1000 * SMOOTHING;
     return Math.max(0, Math.min(1, (performance.now() - this.lastSnap) / interval));
   }
 

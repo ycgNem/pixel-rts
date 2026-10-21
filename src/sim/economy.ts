@@ -99,38 +99,50 @@ export function buildingIncome(s: MatchState, b: Building): { cash: number; oil:
 }
 
 /** Per-second income of a player (for the HUD and AI). */
-export function incomeOf(s: MatchState, p: number): { cash: number; oil: number; science: number; cp: number } {
-  const out = { cash: 0, oil: 0, science: 0, cp: 0 };
+export interface Income { cash: number; oil: number; science: number; cp: number }
+
+export function incomeOf(s: MatchState, p: number): Income {
+  return incomes(s, p)[p] ?? { cash: 0, oil: 0, science: 0, cp: 0 };
+}
+
+/** Every player's income per second (or only player `only`'s), in one pass over the map. */
+export function incomes(s: MatchState, only = -1): Income[] {
+  const out: Income[] = s.players.map(() => ({ cash: 0, oil: 0, science: 0, cp: 0 }));
+  const hq = s.players.map(() => false);
   // a knocked-out player earns nothing, even from cities their insurgents hold
-  if (!s.players[p]?.alive) return out;
-  let hq = false;
+  const earns = (p: number) => p >= 0 && (only < 0 || p === only) && !!s.players[p]?.alive;
   for (const id in s.ents) {
     const e = s.ents[id];
-    if (e.t !== 'b' || e.owner !== p) continue;
-    const inc = buildingIncome(s, e);
-    out.cash += inc.cash;
-    out.oil += inc.oil;
-    out.science += inc.science;
-    if (e.kind === 'hq') hq = true;
+    if (e.t !== 'b' || !earns(e.owner)) continue;
+    const inc = buildingIncome(s, e), o = out[e.owner];
+    o.cash += inc.cash;
+    o.oil += inc.oil;
+    o.science += inc.science;
+    if (e.kind === 'hq') hq[e.owner] = true;
   }
   for (const c of s.cities) {
-    if (c.owner !== p) continue;
-    const inc = cityIncome(s, c);
-    out.cash += inc.cash;
-    out.science += inc.science;
-    out.cp += inc.cp;
+    if (!earns(c.owner)) continue;
+    const inc = cityIncome(s, c), o = out[c.owner];
+    o.cash += inc.cash;
+    o.science += inc.science;
+    o.cp += inc.cp;
   }
-  if (hq || exileCapital(s, p)) out.cp += COMMAND.hqRate / 60;
-  out.cp *= modMul(s.players[p], 'cpRate');
-  const ai = s.players[p].kind === 'ai' ? s.setup.players[p]?.ai : undefined;
-  if (ai) { const m = AI_LEVELS[ai.difficulty].income; out.cash *= m; out.oil *= m; out.science *= m; }
+  s.players.forEach((pl, p) => {
+    if (!earns(p)) return;
+    const o = out[p];
+    if (hq[p] || exileCapital(s, p)) o.cp += COMMAND.hqRate / 60;
+    o.cp *= modMul(pl, 'cpRate');
+    const ai = pl.kind === 'ai' ? s.setup.players[p]?.ai : undefined;
+    if (ai) { const m = AI_LEVELS[ai.difficulty].income; o.cash *= m; o.oil *= m; o.science *= m; }
+  });
   return out;
 }
 
 export function stepIncome(s: MatchState) {
+  const all = incomes(s);
   for (const p of s.players) {
     if (!p.alive) continue;
-    const inc = incomeOf(s, p.id);
+    const inc = all[p.id];
     p.cash += inc.cash * DT;
     p.oil += inc.oil * DT;
     p.science += inc.science * DT;
@@ -359,10 +371,13 @@ function underFire(s: MatchState, b: Building): boolean {
 
 /** Hooks for buildings that do something when finished. */
 function onBuilt(s: MatchState, b: Building, ev: SimEvent[]) {
-  if (b.kind === 'launch' && s.setup.victory.science && !s.launch) {
-    s.launch = { id: b.id, done: s.tick + sec(VICTORY.launchTime), scrub: 0 };
-    ev.push({ e: 'launch', p: b.owner, x: b.x, y: b.y, done: s.launch.done });
-  }
+  if (b.kind === 'launch' && s.setup.victory.science && !s.launch) startLaunch(s, b, ev);
+}
+
+/** Start a finished Launch Site's countdown (only one runs at a time; see `stepVictory`). */
+export function startLaunch(s: MatchState, b: Building, ev: SimEvent[]) {
+  s.launch = { id: b.id, done: s.tick + sec(VICTORY.launchTime), scrub: 0 };
+  ev.push({ e: 'launch', p: b.owner, x: b.x, y: b.y, done: s.launch.done });
 }
 
 // ---------------------------------------------------------------- training

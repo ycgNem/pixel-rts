@@ -104,6 +104,12 @@ export const MAPGEN = {
   startNudge: 4,
   /** radius kept flat and clear around each start */
   startClear: 9,
+  /**
+   * A city no start can walk to (closed off by mountains and the river) gets a pass of this
+   * radius cut to the nearest ground that can; crossing water costs `water` mountain tiles, so a
+   * pass goes through rock rather than across the river.
+   */
+  cityPass: { radius: 1.5, water: 30 },
   /** extra ore and oil per player scattered around the map */
   extraOre: 3,
   extraOil: 2,
@@ -311,11 +317,15 @@ export const VICTORY = {
   /**
    * The 'Auto' time limit (the lobby default): `autoLimit` seconds in a match of `autoLimitPlayers`
    * or more players or on an `autoLimitMaps` map (big free-for-alls and naval maps can stall),
-   * none otherwise. In the last `scoreRace` seconds of any limit the tracker shows the score race.
+   * else `autoLimitLong` seconds with `autoLimitTeams` or more teams (three-way and four-way wars
+   * can stall too), none otherwise. In the last `scoreRace` seconds of any limit the tracker shows
+   * the score race.
    */
   autoLimit: 2700,
   autoLimitPlayers: 5,
   autoLimitMaps: ['islands', 'continents'],
+  autoLimitLong: 3600,
+  autoLimitTeams: 3,
   scoreRace: 600,
 };
 

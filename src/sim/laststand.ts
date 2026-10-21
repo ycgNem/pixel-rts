@@ -37,6 +37,6 @@ export function stepLastStand(s: MatchState, ev: SimEvent[]) {
     }, 0);
     if (n >= LAST_STAND.max) continue;
     const t = nearestPassable(nav(s), 'ground', Math.floor(hq.x), Math.floor(hq.y) + 3, 6);
-    if (t) spawnUnit(s, LAST_STAND.kind, p.id, t[0] + 0.5, t[1] + 0.5);
+    if (t) spawnUnit(s, LAST_STAND.kind, p.id, t[0] + 0.5, t[1] + 0.5, true);
   }
 }
